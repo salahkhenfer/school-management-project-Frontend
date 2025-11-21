@@ -536,6 +536,10 @@ function Group() {
         </div>
         <div className="text-xl py-3 font-bold">
           <div>توقيت الدورة:</div>
+          <div>
+            من {group?.startDate.toString().split("T")[0]} الى{" "}
+            {group?.endDate.toString().split("T")[0]}
+          </div>
           <div className="w-full py-3 ">
             {!Array.isArray(lines?.schedules) &&
             !group?.schedules?.length === 0 ? (

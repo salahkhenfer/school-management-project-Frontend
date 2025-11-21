@@ -12,8 +12,9 @@ function SendReport() {
 
   const handleSendReport = async () => {
     if (message.trim() === "") return; // Prevent sending empty content
-
+    console.log(message, user?.id);
     setLoading(true);
+
     const res = await sendMessage(message, user?.id);
 
     if (res) {

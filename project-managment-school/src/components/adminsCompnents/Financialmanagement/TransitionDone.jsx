@@ -64,7 +64,7 @@ function TransitionDone() {
             <TableColumn key="id">رمز الدفع</TableColumn>
             <TableColumn key="teacher">اسم الاستاذ</TableColumn>
             <TableColumn key="amount">مبلغ (دج)</TableColumn>
-            <TableColumn key="createdAt">التاريخ (دج)</TableColumn>
+            <TableColumn key="createdAt">التاريخ </TableColumn>
             <TableColumn key="isPaid"> حالة الدفع </TableColumn>
           </TableHeader>
           <TableBody items={paymentTeacher}>

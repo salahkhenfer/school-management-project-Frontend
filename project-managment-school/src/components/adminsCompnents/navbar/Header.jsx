@@ -72,7 +72,6 @@ function Header({ isOpen, setIsOpen }) {
                 <p className="font-semibold">اسم الحساب </p>
                 <p className="font-semibold">{user?.name}</p>
               </DropdownItem>
-              <DropdownItem key="settings">الصفحة الرئيسة</DropdownItem>
               <DropdownItem onClick={handelLogout} key="logout" color="danger">
                 تسجيل الخروج
               </DropdownItem>
