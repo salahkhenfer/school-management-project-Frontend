@@ -3,7 +3,7 @@ import axios from "axios";
 const getPaymentByGroup = async (groupId) => {
   try {
     const response = await axios.post(
-      `https://servertest.eltatwir.com/api/payments/getPaymentByGroup`,
+      `http://localhost:3000/api/payments/getPaymentByGroup`,
       {
         groupId,
       },

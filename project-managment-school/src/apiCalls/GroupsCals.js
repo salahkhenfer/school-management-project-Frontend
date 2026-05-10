@@ -3,7 +3,7 @@ import axios from "axios";
 const getGroupById = async (id) => {
   try {
     const response = await axios.post(
-      `https://servertest.eltatwir.com/api/groups/getGroupByID`,
+      `http://localhost:3000/api/groups/getGroupByID`,
       { id: id }, // Send the group ID in the request body
       {
         withCredentials: true,
@@ -21,7 +21,7 @@ const getGroups = async (theRest) => {
   console.log(theRest);
   try {
     const response = await axios.post(
-      `https://servertest.eltatwir.com/api/groups/getAllGroups`,
+      `http://localhost:3000/api/groups/getAllGroups`,
       { theRest: theRest }, // Send theRest in the request body
       {
         withCredentials: true,
@@ -38,7 +38,7 @@ const getGroups = async (theRest) => {
 const addGroupApi = async (group) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/groups/addGroup",
+      "http://localhost:3000/api/groups/addGroup",
       {
         name: group.groupName,
         price: group.price,
@@ -67,7 +67,7 @@ const addGroupApi = async (group) => {
 const deleteGroup = async (id) => {
   try {
     const response = await axios.delete(
-      "https://servertest.eltatwir.com/api/groups/deleteGroup",
+      "http://localhost:3000/api/groups/deleteGroup",
 
       {
         data: { id: id },
@@ -84,7 +84,7 @@ const deleteGroup = async (id) => {
 const updateGroupStatus = async (id, isCompleted) => {
   try {
     const response = await axios.put(
-      "https://servertest.eltatwir.com/api/groups/updateGroupStatus",
+      "http://localhost:3000/api/groups/updateGroupStatus",
       {
         id: id,
         isCompleted,
@@ -102,7 +102,7 @@ const updateGroupStatus = async (id, isCompleted) => {
 const updateGroup = async (group) => {
   try {
     const response = await axios.put(
-      "https://servertest.eltatwir.com/api/groups/updateGroup",
+      "http://localhost:3000/api/groups/updateGroup",
       {
         id: group.id,
         name: group.groupName,
@@ -127,7 +127,7 @@ const updateGroup = async (group) => {
 const getGroupByTeacher = async (teacherId) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/groups/getGroupByTeacher",
+      "http://localhost:3000/api/groups/getGroupByTeacher",
       { teacherId },
       {
         withCredentials: true,

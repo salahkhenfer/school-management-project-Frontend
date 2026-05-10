@@ -1,35 +1,32 @@
-import React, { useEffect, useState } from "react";
 import {
-  Table,
-  TableHeader,
-  TableColumn,
-  TableBody,
-  TableRow,
-  TableCell,
-  getKeyValue,
-  Select,
-  SelectItem,
   Button,
-  Spinner,
+  getKeyValue,
   Modal,
   ModalContent,
-  useDisclosure,
   Pagination,
+  Spinner,
+  Table,
+  TableBody,
+  TableCell,
+  TableColumn,
+  TableHeader,
+  TableRow,
+  useDisclosure,
 } from "@nextui-org/react";
-import * as Yup from "yup";
+import { useEffect, useState } from "react";
 import { Form, useLocation, useNavigate } from "react-router-dom";
+import * as Yup from "yup";
 
+import { Input } from "@nextui-org/react";
 import { ErrorMessage, Field, Formik } from "formik";
-import { Input, DatePicker } from "@nextui-org/react";
-import Swal from "sweetalert2";
+import { FaEye, FaEyeSlash, FaSearch } from "react-icons/fa";
 import { IoIosAddCircle } from "react-icons/io";
 import { MdDelete } from "react-icons/md";
-import { FaEye, FaEyeSlash, FaSearch } from "react-icons/fa";
-import { formatDate } from "date-fns";
+import Swal from "sweetalert2";
 import {
-  getAllTeachers,
   addTeacherApi,
   deleteTeacherApi,
+  getAllTeachers,
   searchTeacherApi,
 } from "../../apiCalls/teacherCalls";
 // import { getAllSubjects } from "../../apiCalls/subjectCalls";
@@ -49,8 +46,20 @@ function Teachers() {
 
   const fetchTeachers = async () => {
     setLoadingTeachers(true);
-    const newList = await getAllTeachers();
-    setTeachers(newList);
+    try {
+      const newList = await getAllTeachers();
+      // Check if newList is an array or an object with data property
+      if (Array.isArray(newList)) {
+        setTeachers(newList);
+      } else if (newList && newList.data) {
+        setTeachers(newList.data);
+      } else {
+        setTeachers([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch teachers:", error);
+      setTeachers([]);
+    }
     setLoadingTeachers(false);
   };
 
@@ -118,8 +127,20 @@ function Teachers() {
     if (searchTeacher === "") {
       return fetchTeachers();
     }
-    const newList = await searchTeacherApi(searchTeacher);
-    setTeachers(newList);
+    try {
+      const newList = await searchTeacherApi(searchTeacher);
+      // Check if newList is an array or an object with data property
+      if (Array.isArray(newList)) {
+        setTeachers(newList);
+      } else if (newList && newList.data) {
+        setTeachers(newList.data);
+      } else {
+        setTeachers([]);
+      }
+    } catch (error) {
+      console.error("Failed to search teachers:", error);
+      setTeachers([]);
+    }
   };
 
   return (
@@ -174,14 +195,21 @@ function Teachers() {
               </div>
             </div>
           ) : (
-            <Table className="min-h-[60vh] " isHeaderSticky>
+            <Table
+              className="min-h-[60vh] "
+              isHeaderSticky
+              aria-label="Teachers table"
+            >
               <TableHeader>
                 <TableColumn key="id">رمز المعلم</TableColumn>
                 <TableColumn key="fullName">اسم المعلم</TableColumn>
                 <TableColumn key="phoneNumber">رقم الهاتف </TableColumn>
                 <TableColumn key="action">العمليات</TableColumn>
               </TableHeader>
-              <TableBody items={teachers}>
+              <TableBody
+                items={Array.isArray(teachers) ? teachers : []}
+                emptyContent="لا يوجد معلمين"
+              >
                 {(item) => (
                   <TableRow
                     className="hover:bg-gray-100 border-b-2 border-gray-200 transition-all duration-200 ease-in-out h-4 cursor-pointer"

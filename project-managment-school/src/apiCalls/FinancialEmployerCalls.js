@@ -3,7 +3,7 @@ import axios from "axios";
 const getEmployerFinancials = async () => {
   try {
     const response = await axios.get(
-      "https://servertest.eltatwir.com/api/PaymentEmployer/getAllPaymentEmployer",
+      "http://localhost:3000/api/PaymentEmployer/getAllPaymentEmployer",
 
       {
         withCredentials: true,
@@ -19,7 +19,7 @@ const getEmployerFinancials = async () => {
 const addPaymentEmployer = async (employerId, amount) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/PaymentEmployer/addPaymentEmployer",
+      "http://localhost:3000/api/PaymentEmployer/addPaymentEmployer",
       {
         employerName: employerId,
         amount: parseInt(amount),
@@ -38,7 +38,7 @@ const addPaymentEmployer = async (employerId, amount) => {
 const searchEmployerPayment = async (employerName) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/PaymentEmployer/searchPaymentEmployer",
+      "http://localhost:3000/api/PaymentEmployer/searchPaymentEmployer",
       {
         employerName,
       },

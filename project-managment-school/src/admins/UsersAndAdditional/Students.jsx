@@ -2,7 +2,6 @@ import {
   Button,
   Modal,
   ModalContent,
-  Pagination,
   Select,
   SelectItem,
   Spinner,
@@ -15,7 +14,7 @@ import {
   getKeyValue,
   useDisclosure,
 } from "@nextui-org/react";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import * as Yup from "yup";
 
 import {
@@ -29,6 +28,7 @@ import {
 import { ErrorMessage, Field, Formik } from "formik";
 import "jspdf-autotable";
 
+import { format } from "date-fns/format";
 import { FaSearch } from "react-icons/fa";
 import { IoIosAddCircle } from "react-icons/io";
 import { MdDelete } from "react-icons/md";
@@ -44,9 +44,6 @@ import {
   searchStudentApi,
 } from "../../apiCalls/studentCalls";
 import Education from "../../utils/Education";
-import pdfMake from "pdfmake/build/pdfmake";
-import { font } from "../../assets/Cairo-VariableFont_slnt,wght-normal";
-import { format, formatDate } from "date-fns/format";
 
 function Students() {
   const nav = useNavigate();
@@ -99,10 +96,21 @@ function Students() {
   ];
   const fetchStudents = async () => {
     setLoadingGroups(true);
-    const newList = await getAllStudent();
-    console.log(newList);
-    setStudent(newList.students);
-    console.log(newList);
+    try {
+      const newList = await getAllStudent();
+      console.log(newList);
+      // Check if newList has students property or is an array
+      if (newList && newList.students) {
+        setStudent(Array.isArray(newList.students) ? newList.students : []);
+      } else if (Array.isArray(newList)) {
+        setStudent(newList);
+      } else {
+        setStudent([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch students:", error);
+      setStudent([]);
+    }
     setLoadingGroups(false);
   };
   // function formatDate(date) {
@@ -112,17 +120,11 @@ function Students() {
   //   const day = date.day.toString().padStart(2, "0"); // Ensure two-digit format
   //   return `${year}-${month}-${day}`;
   // }
-  pdfMake.vfs = {
-    ...pdfMake.vfs,
-    "Cairo-Regular.ttf": font,
-  };
-
-  pdfMake.fonts = {
-    Cairo: {
-      normal: "Cairo-Regular.ttf",
-      bold: "Cairo-Regular.ttf",
-    },
-  };
+  // Initialize jsPDF fonts once at component mount
+  useEffect(() => {
+    // Font setup is handled by jsPDF
+  }, []);
+  
   const fetchLanguages = async () => {
     const newList = await getAllLanguages();
     setLanguages(newList);
@@ -219,19 +221,28 @@ function Students() {
     if (searchStudent === "") {
       return fetchStudents();
     }
-    const newList = await searchStudentApi(searchStudent);
-
-    setStudent(newList);
+    try {
+      const newList = await searchStudentApi(searchStudent);
+      // Check if newList is an array or has data property
+      if (Array.isArray(newList)) {
+        setStudent(newList);
+      } else if (newList && newList.students) {
+        setStudent(Array.isArray(newList.students) ? newList.students : []);
+      } else if (newList && newList.data) {
+        setStudent(Array.isArray(newList.data) ? newList.data : []);
+      } else {
+        setStudent([]);
+      }
+    } catch (error) {
+      console.error("Failed to search students:", error);
+      setStudent([]);
+    }
   };
-  // Function to convert text to RTL
-  const convertTextToRtl = (text) => {
-    return text.split(" ").reverse().join("  ");
-  };
-  // وظيفة إنشاء PDF لوصل الدفع
-
   const handlePrint = (student) => {
-    const groupName = group.filter((item) => item.id === student.groupId);
-    if (!student) {
+    console.log("Print student data:", student);
+    console.log("Available groups:", group);
+
+    if (!student || !student.fullName) {
       Swal.fire({
         icon: "error",
         title: "عذرا",
@@ -240,93 +251,305 @@ function Students() {
       return;
     }
 
-    const docDefinition = {
-      pageSize: {
-        width: 180,
-        height: "auto",
-      },
-      pageMargins: [10, 10, 10, 10],
-      content: [
-        {
-          text: convertTextToRtl("وصل دفع"),
-          style: "header",
-          margin: [0, 0, 0, 10],
-          alignment: "center",
-        },
-        {
-          text: convertTextToRtl(`اسم التلميذ: ${student.fullName}`),
-          style: "smallText",
-        },
-        {
-          text: convertTextToRtl(`تاريخ الميلاد: ${student.birthDay}`),
-          style: "smallText",
-        },
-        {
-          text: convertTextToRtl(`الصف: ${groupName[0]?.name}`),
-          style: "smallText",
-        },
-        {
-          text: convertTextToRtl(`السعر: ${student.price} DZD`),
-          style: "smallText",
-        },
-        {
-          text: convertTextToRtl(
-            `تاريخ الدفع: ${new Date().toLocaleDateString()}`
-          ),
-          style: "smallText",
-        },
-        {
-          text: convertTextToRtl("شكرا لتسديدك!"),
-          style: "smallText",
-          margin: [0, 10, 0, 0],
-        },
-      ],
-      styles: {
-        header: {
-          fontSize: 14,
-          bold: true,
-          alignment: "center",
-          decoration: "underline", // Underline the header
-        },
-        smallText: {
-          fontSize: 8, // Smaller font size for receipt-like text
-          alignment: "right",
-          margin: [0, 2], // Add some space between lines
-        },
-      },
-      defaultStyle: {
-        font: "Cairo", // Set default font for the entire document
-      },
-      // Add borders to the page
-      layout: {
-        hLineColor: function (i, node) {
-          return "#000000";
-        }, // Line color
-        vLineColor: function (i, node) {
-          return "#000000";
-        }, // Line color
-        hLineWidth: function (i, node) {
-          return 1;
-        }, // Line width
-        vLineWidth: function (i, node) {
-          return 1;
-        }, // Line width
-        paddingLeft: function (i, node) {
-          return 4;
-        },
-        paddingRight: function (i, node) {
-          return 4;
-        },
-        paddingTop: function (i, node) {
-          return 4;
-        },
-        paddingBottom: function (i, node) {
-          return 4;
-        },
-      },
-    };
+    try {
+      const groupName = group.find((item) => item.id === student.groupId);
+      console.log("Found group:", groupName);
 
-    pdfMake.createPdf(docDefinition).open();
+      // Generate receipt number
+      const receiptNumber = `${new Date().getFullYear()}-${String(
+        new Date().getMonth() + 1
+      ).padStart(2, "0")}-${Math.floor(Math.random() * 10000)
+        .toString()
+        .padStart(4, "0")}`;
+
+      // Format date in Arabic
+      const currentDate = new Date();
+      const dateArabic = currentDate.toLocaleDateString("ar-DZ", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+
+      // Create print window with HTML content
+      const printWindow = window.open("", "_blank");
+      
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html dir="rtl" lang="ar">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>وصل تسجيل</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+            
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
+            body {
+              font-family: 'Cairo', Arial, sans-serif;
+              direction: rtl;
+              text-align: right;
+              background: white;
+              padding: 20px;
+            }
+            
+            .receipt {
+              max-width: 80mm;
+              margin: 0 auto;
+              padding: 15px;
+              background: white;
+            }
+            
+            .logo {
+              text-align: center;
+              font-size: 36px;
+              margin-bottom: 8px;
+            }
+            
+            .school-name {
+              text-align: center;
+              font-size: 20px;
+              font-weight: 700;
+              color: #1a56db;
+              margin-bottom: 5px;
+            }
+            
+            .school-name-en {
+              text-align: center;
+              font-size: 11px;
+              color: #666;
+              margin-bottom: 12px;
+              font-family: Arial, sans-serif;
+              direction: ltr;
+            }
+            
+            .divider {
+              border-top: 2px solid #000;
+              margin: 10px 0;
+            }
+            
+            .divider-dashed {
+              border-top: 1px dashed #999;
+              margin: 8px 0;
+            }
+            
+            .header-title {
+              text-align: center;
+              font-size: 18px;
+              font-weight: 700;
+              text-decoration: underline;
+              margin: 10px 0;
+            }
+            
+            .receipt-info {
+              display: flex;
+              justify-content: space-between;
+              margin: 10px 0;
+              font-size: 10px;
+              color: #333;
+            }
+            
+            .receipt-info-item {
+              flex: 1;
+            }
+            
+            .info-label {
+              font-size: 9px;
+              color: #666;
+              font-weight: 700;
+              margin-bottom: 3px;
+            }
+            
+            .info-value {
+              font-size: 10px;
+              color: #333;
+            }
+            
+            .details-table {
+              width: 100%;
+              margin: 10px 0;
+            }
+            
+            .details-row {
+              display: flex;
+              justify-content: space-between;
+              padding: 6px 0;
+              border-bottom: 1px solid #eee;
+            }
+            
+            .details-label {
+              font-weight: 700;
+              font-size: 12px;
+              color: #333;
+              min-width: 100px;
+            }
+            
+            .details-value {
+              font-size: 12px;
+              color: #000;
+              flex: 1;
+              text-align: left;
+            }
+            
+            .amount-box {
+              background: #f0f7ff;
+              border: 2px solid #1a56db;
+              border-radius: 5px;
+              padding: 12px;
+              margin: 15px 0;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            
+            .amount-label {
+              font-size: 14px;
+              font-weight: 700;
+              color: #1a56db;
+            }
+            
+            .amount-value {
+              font-size: 16px;
+              font-weight: 700;
+              color: #1a56db;
+            }
+            
+            .thank-you {
+              text-align: center;
+              font-size: 13px;
+              font-weight: 700;
+              color: #16a34a;
+              margin: 15px 0 5px 0;
+            }
+            
+            .thank-you-en {
+              text-align: center;
+              font-size: 10px;
+              color: #666;
+              font-style: italic;
+              margin-bottom: 12px;
+              font-family: Arial, sans-serif;
+              direction: ltr;
+            }
+            
+            .contact {
+              text-align: center;
+              font-size: 9px;
+              color: #666;
+              margin-top: 10px;
+            }
+            
+            @media print {
+              body {
+                padding: 0;
+              }
+              
+              .receipt {
+                max-width: 100%;
+                padding: 10px;
+              }
+              
+              @page {
+                size: 80mm auto;
+                margin: 5mm;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt">
+            <!-- Logo -->
+            <div class="logo">🎓</div>
+            
+            <!-- School Name -->
+            <div class="school-name">مدرسة التطوير</div>
+            <div class="school-name-en">School of Development</div>
+            
+            <!-- Divider -->
+            <div class="divider"></div>
+            
+            <!-- Receipt Title -->
+            <div class="header-title">وصل تسجيل</div>
+            
+            <!-- Receipt Number and Date -->
+            <div class="receipt-info">
+              <div class="receipt-info-item">
+                <div class="info-label">رقم الوصل</div>
+                <div class="info-value">${receiptNumber}</div>
+              </div>
+              <div class="receipt-info-item" style="text-align: left;">
+                <div class="info-label" style="text-align: left;">التاريخ</div>
+                <div class="info-value" style="text-align: left;">${dateArabic}</div>
+              </div>
+            </div>
+            
+            <!-- Dashed Divider -->
+            <div class="divider-dashed"></div>
+            
+            <!-- Student Details -->
+            <div class="details-table">
+              <div class="details-row">
+                <div class="details-label">اسم التلميذ</div>
+                <div class="details-value">${student.fullName || ""}</div>
+              </div>
+              <div class="details-row">
+                <div class="details-label">تاريخ الميلاد</div>
+                <div class="details-value">${student.birthDay || "غير محدد"}</div>
+              </div>
+              <div class="details-row">
+                <div class="details-label">الفوج</div>
+                <div class="details-value">${groupName?.name || "غير محدد"}</div>
+              </div>
+            </div>
+            
+            <!-- Dashed Divider -->
+            <div class="divider-dashed"></div>
+            
+            <!-- Amount Box -->
+            <div class="amount-box">
+              <div class="amount-label">المبلغ المدفوع</div>
+              <div class="amount-value">${student.price || 0} دج</div>
+            </div>
+            
+            <!-- Divider -->
+            <div class="divider"></div>
+            
+            <!-- Thank You -->
+            <div class="thank-you">شكراً لثقتكم بنا</div>
+            <div class="thank-you-en">Thank you for trusting us!</div>
+            
+            <!-- Contact -->
+            <div class="contact">للاستفسار: 0123 45 67 89 | info@school.dz</div>
+          </div>
+          
+          <script>
+            window.onload = function() {
+              window.print();
+              // Close window after printing or canceling
+              setTimeout(function() {
+                window.close();
+              }, 100);
+            };
+          </script>
+        </body>
+        </html>
+      `;
+      
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      
+    } catch (error) {
+      console.error("Error printing receipt:", error);
+      Swal.fire({
+        icon: "error",
+        title: "خطأ في الطباعة",
+        text: "حدث خطأ أثناء طباعة الوصل. يرجى المحاولة مرة أخرى.",
+      });
+    }
   };
   return (
     <div>
@@ -380,14 +603,21 @@ function Students() {
               </div>
             </div>
           ) : (
-            <Table className="min-h-[60vh] " isHeaderSticky>
+            <Table
+              className="min-h-[60vh] "
+              isHeaderSticky
+              aria-label="Students table"
+            >
               <TableHeader>
                 <TableColumn key="id">رمز التلميذ</TableColumn>
                 <TableColumn key="fullName">اسم التلميذ</TableColumn>
                 <TableColumn key="birthDay">تاريخ الميلاد</TableColumn>
                 <TableColumn key="action">العمليات</TableColumn>
               </TableHeader>
-              <TableBody items={student}>
+              <TableBody
+                items={Array.isArray(student) ? student : []}
+                emptyContent="لا يوجد تلاميذ"
+              >
                 {(item) => (
                   <TableRow
                     className="
@@ -494,11 +724,16 @@ function Students() {
                       position: "center",
                       icon: "success",
                       title: "تمت إضافة التلميذ بنجاح",
-                      timer: 1500,
-                      confirmButtonText: "Okay",
-                    }).then(() => {
-                      handlePrint(newStudent);
-
+                      text: "هل تريد طباعة وصل الدفع؟",
+                      showCancelButton: true,
+                      confirmButtonText: "نعم، اطبع الوصل",
+                      cancelButtonText: "لا، شكراً",
+                      confirmButtonColor: "#3085d6",
+                      cancelButtonColor: "#d33",
+                    }).then((result) => {
+                      if (result.isConfirmed) {
+                        handlePrint(newStudent);
+                      }
                       resetForm();
                       onClose();
                       fetchStudents(); // Refresh the list of students
@@ -753,27 +988,60 @@ function Students() {
                         />
                         <Button
                           onClick={async () => {
-                            setGroup((prev) => []);
-                            setLoadingSearch(true);
+                            try {
+                              setGroup([]);
+                              setLoadingSearch(true);
 
-                            // Construct the URL with encoded components
-                            const url = `/classes/Languages/${encodeURIComponent(
-                              values.language
-                            )}/${encodeURIComponent(values.level)}`;
+                              // Construct the URL with encoded components
+                              const url = `/classes/Languages/${encodeURIComponent(
+                                values.language
+                              )}/${encodeURIComponent(values.level)}`;
 
-                            // Fetch data from the API
-                            const newList = await getGroups(url);
+                              console.log("Fetching groups with URL:", url);
 
-                            // Filter and update the state with incomplete items
-                            newList.forEach((item) => {
-                              if (!item.isCompleted) {
-                                setGroup((prev) => [...prev, item]);
+                              // Fetch data from the API
+                              const newList = await getGroups(url);
+
+                              console.log("Received groups:", newList);
+
+                              // Filter and update the state with incomplete items
+                              if (
+                                Array.isArray(newList) &&
+                                newList.length > 0
+                              ) {
+                                const incompleteGroups = newList.filter(
+                                  (item) => !item.isCompleted
+                                );
+                                setGroup(incompleteGroups);
+                                console.log(
+                                  "Filtered groups:",
+                                  incompleteGroups
+                                );
+                              } else {
+                                setGroup([]);
+                                Swal.fire({
+                                  icon: "info",
+                                  title: "لا توجد مجموعات",
+                                  text: "لم يتم العثور على مجموعات متاحة",
+                                  timer: 2000,
+                                });
                               }
-                            });
 
-                            setLoadingSearch(false);
+                              setLoadingSearch(false);
+                            } catch (error) {
+                              console.error("Error fetching groups:", error);
+                              setLoadingSearch(false);
+                              setGroup([]);
+                              Swal.fire({
+                                icon: "error",
+                                title: "خطأ",
+                                text: "فشل في تحميل المجموعات",
+                                timer: 2000,
+                              });
+                            }
                           }}
                           className="w-full text-center text-white text-base font-semibold bg-indigo-500 rounded-2xl px-8 py-2"
+                          isLoading={loadingSearch}
                         >
                           ابحث عن فوج
                         </Button>
@@ -858,30 +1126,61 @@ function Students() {
                         {selectedModule && (
                           <Button
                             onClick={async () => {
-                              setGroup((prev) => []);
-                              setLoadingSearch(true);
+                              try {
+                                setGroup([]);
+                                setLoadingSearch(true);
 
-                              // Construct the URL with encoded components
-                              const url = `/classes/Levels/${encodeURIComponent(
-                                values.level
-                              )}/${encodeURIComponent(
-                                values.theYear
-                              )}/${encodeURIComponent(values.theModule)}`;
+                                // Construct the URL with encoded components
+                                const url = `/classes/Levels/${encodeURIComponent(
+                                  values.level
+                                )}/${encodeURIComponent(
+                                  values.theYear
+                                )}/${encodeURIComponent(values.theModule)}`;
 
-                              // Fetch data from the API
-                              const newList = await getGroups(url);
-                              console.log(values.theModule);
+                                console.log("Fetching groups with URL:", url);
 
-                              // Filter and update the state with incomplete items
-                              newList.forEach((item) => {
-                                if (!item.isCompleted) {
-                                  setGroup((prev) => [...prev, item]);
+                                // Fetch data from the API
+                                const newList = await getGroups(url);
+                                console.log("Received groups:", newList);
+
+                                // Filter and update the state with incomplete items
+                                if (
+                                  Array.isArray(newList) &&
+                                  newList.length > 0
+                                ) {
+                                  const incompleteGroups = newList.filter(
+                                    (item) => !item.isCompleted
+                                  );
+                                  setGroup(incompleteGroups);
+                                  console.log(
+                                    "Filtered groups:",
+                                    incompleteGroups
+                                  );
+                                } else {
+                                  setGroup([]);
+                                  Swal.fire({
+                                    icon: "info",
+                                    title: "لا توجد مجموعات",
+                                    text: "لم يتم العثور على مجموعات متاحة",
+                                    timer: 2000,
+                                  });
                                 }
-                              });
 
-                              setLoadingSearch(false);
+                                setLoadingSearch(false);
+                              } catch (error) {
+                                console.error("Error fetching groups:", error);
+                                setLoadingSearch(false);
+                                setGroup([]);
+                                Swal.fire({
+                                  icon: "error",
+                                  title: "خطأ",
+                                  text: "فشل في تحميل المجموعات",
+                                  timer: 2000,
+                                });
+                              }
                             }}
                             className="w-full text-center text-white text-base font-semibold bg-indigo-500 rounded-2xl px-8 py-2"
+                            isLoading={loadingSearch}
                           >
                             ابحث عن فوج
                           </Button>
@@ -924,27 +1223,60 @@ function Students() {
                         />
                         <Button
                           onClick={async () => {
-                            setGroup((prev) => []);
-                            setLoadingSearch(true);
+                            try {
+                              setGroup([]);
+                              setLoadingSearch(true);
 
-                            // Construct the URL with encoded components
-                            const url = `/classes/Courses/${encodeURIComponent(
-                              values.course
-                            )}`;
+                              // Construct the URL with encoded components
+                              const url = `/classes/Courses/${encodeURIComponent(
+                                values.course
+                              )}`;
 
-                            // Fetch data from the API
-                            const newList = await getGroups(url);
+                              console.log("Fetching groups with URL:", url);
 
-                            // Filter and update the state with incomplete items
-                            newList.forEach((item) => {
-                              if (!item.isCompleted) {
-                                setGroup((prev) => [...prev, item]);
+                              // Fetch data from the API
+                              const newList = await getGroups(url);
+
+                              console.log("Received groups:", newList);
+
+                              // Filter and update the state with incomplete items
+                              if (
+                                Array.isArray(newList) &&
+                                newList.length > 0
+                              ) {
+                                const incompleteGroups = newList.filter(
+                                  (item) => !item.isCompleted
+                                );
+                                setGroup(incompleteGroups);
+                                console.log(
+                                  "Filtered groups:",
+                                  incompleteGroups
+                                );
+                              } else {
+                                setGroup([]);
+                                Swal.fire({
+                                  icon: "info",
+                                  title: "لا توجد مجموعات",
+                                  text: "لم يتم العثور على مجموعات متاحة",
+                                  timer: 2000,
+                                });
                               }
-                            });
 
-                            setLoadingSearch(false);
+                              setLoadingSearch(false);
+                            } catch (error) {
+                              console.error("Error fetching groups:", error);
+                              setLoadingSearch(false);
+                              setGroup([]);
+                              Swal.fire({
+                                icon: "error",
+                                title: "خطأ",
+                                text: "فشل في تحميل المجموعات",
+                                timer: 2000,
+                              });
+                            }
                           }}
                           className="w-full text-center text-white text-base font-semibold bg-indigo-500 rounded-2xl px-8 py-2"
+                          isLoading={loadingSearch}
                         >
                           ابحث عن فوج
                         </Button>

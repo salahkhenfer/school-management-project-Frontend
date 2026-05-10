@@ -3,7 +3,7 @@ import axios from "axios";
 const getAllLanguages = async () => {
   try {
     const response = await axios.get(
-      "https://servertest.eltatwir.com/api/languages/allLanguages",
+      "http://localhost:3000/api/languages/allLanguages",
       {
         withCredentials: true,
       }
@@ -18,7 +18,7 @@ const getAllLanguages = async () => {
 const addLanguageApi = async (language) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/languages/addLanguage",
+      "http://localhost:3000/api/languages/addLanguage",
       { name: language },
       {
         withCredentials: true,
@@ -35,7 +35,7 @@ const deleteLanguageApi = async (id) => {
   console.log(id);
   try {
     const response = await axios.delete(
-      ` https://servertest.eltatwir.com/api/languages/deleteLanguage`,
+      ` http://localhost:3000/api/languages/deleteLanguage`,
       {
         data: { id }, // Send the id in the request body
         withCredentials: true, // Ensure cookies are sent with the request

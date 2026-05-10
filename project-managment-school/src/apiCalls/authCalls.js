@@ -1,9 +1,12 @@
 import axios from "axios";
 
+// Using localhost for local development
+const API_URL = "http://localhost:3000/api";
+
 export const LoginApi = async (username, password) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/auth/login",
+      `${API_URL}/auth/login`,
       {
         username: username,
         password: password,
@@ -24,12 +27,9 @@ export const LoginApi = async (username, password) => {
 
 export const checkauthApi = async () => {
   try {
-    const response = await axios.get(
-      "https://servertest.eltatwir.com/api/auth/checkAuth",
-      {
-        withCredentials: true,
-      }
-    );
+    const response = await axios.get(`${API_URL}/auth/checkAuth`, {
+      withCredentials: true,
+    });
     console.log(response.data);
     return response.data; // Return the response data on success
   } catch (err) {
@@ -40,7 +40,7 @@ export const checkauthApi = async () => {
 export const LogoutApi = async () => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/auth/logout",
+      `${API_URL}/auth/logout`,
       {},
       {
         withCredentials: true,
@@ -52,10 +52,11 @@ export const LogoutApi = async () => {
     console.error("Failed to logout:", err);
   }
 };
+
 export const getUserByIdApi = async (id) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/auth/getUserById",
+      `${API_URL}/auth/getUserById`,
       {
         id: id,
       },

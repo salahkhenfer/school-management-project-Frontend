@@ -1,13 +1,12 @@
 import axios from "axios";
 
+const API_URL = "http://localhost:3000/api";
+
 const getAllTeachers = async () => {
   try {
-    const response = await axios.get(
-      "https://servertest.eltatwir.com/api/teachers/GetAllTeacher",
-      {
-        withCredentials: true,
-      }
-    );
+    const response = await axios.get(`${API_URL}/teachers/GetAllTeacher`, {
+      withCredentials: true,
+    });
     console.log(response.data);
     return response.data.teachers; // Return the response data on success
   } catch (err) {
@@ -19,7 +18,7 @@ const getAllTeachers = async () => {
 const addTeacherApi = async (teacher) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/teachers/AddTeacher",
+      `${API_URL}/teachers/AddTeacher`,
       teacher, // Pass the teacher object directly
 
       {
@@ -40,13 +39,10 @@ const addTeacherApi = async (teacher) => {
 const deleteTeacherApi = async (teacherId) => {
   console.log(teacherId);
   try {
-    const response = await axios.delete(
-      "https://servertest.eltatwir.com/api/teachers/DeleteTeacher",
-      {
-        data: { id: teacherId },
-        withCredentials: true,
-      }
-    );
+    const response = await axios.delete(`${API_URL}/teachers/DeleteTeacher`, {
+      data: { id: teacherId },
+      withCredentials: true,
+    });
     console.log(response.data);
     return response.data;
   } catch (err) {
@@ -56,7 +52,7 @@ const deleteTeacherApi = async (teacherId) => {
 const getTeacherById = async (teacherId) => {
   try {
     const response = await axios.post(
-      `https://servertest.eltatwir.com/api/teachers/getTeacherById`,
+      `${API_URL}/teachers/getTeacherById`,
       {
         id: teacherId,
       },
@@ -73,7 +69,7 @@ const getTeacherById = async (teacherId) => {
 const searchTeacherApi = async (teacher) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/Teachers/searchTeachers",
+      `${API_URL}/Teachers/searchTeachers`,
       {
         fullName: teacher,
       },
@@ -91,12 +87,9 @@ const searchTeacherApi = async (teacher) => {
 };
 const countTeachers = async () => {
   try {
-    const response = await axios.get(
-      "https://servertest.eltatwir.com/api/teachers/countTeachers",
-      {
-        withCredentials: true,
-      }
-    );
+    const response = await axios.get(`${API_URL}/teachers/countTeachers`, {
+      withCredentials: true,
+    });
     console.log(response.data);
     return response.data.count; // Return the response data on success
   } catch (err) {
@@ -108,7 +101,7 @@ const countTeachers = async () => {
 const getTeacherWithUser = async (id) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/teachers/getTeacherWithUser",
+      `${API_URL}/teachers/getTeacherWithUser`,
       id,
       {
         withCredentials: true,
@@ -124,7 +117,7 @@ const getTeacherWithUser = async (id) => {
 const updateTeacher = async (teacher) => {
   try {
     const response = await axios.put(
-      "https://servertest.eltatwir.com/api/teachers/updateTeacher",
+      `${API_URL}/teachers/updateTeacher`,
       teacher,
       {
         withCredentials: true,

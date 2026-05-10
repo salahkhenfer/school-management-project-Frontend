@@ -9,7 +9,7 @@ const getAllFreeRegiments = async ({
 }) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/schedules/getAllFreeRegiments",
+      "http://localhost:3000/api/schedules/getAllFreeRegiments",
       {
         startDate,
         endDate,
@@ -45,7 +45,7 @@ const addSchedule = async (schedule) => {
     }
     if (schedule.group) {
       const response = await axios.post(
-        "https://servertest.eltatwir.com/api/schedules/addSchedule",
+        "http://localhost:3000/api/schedules/addSchedule",
         {
           regimentId: schedule.regiment,
           startTime: schedule.startTime,
@@ -69,7 +69,7 @@ const addSchedule = async (schedule) => {
 const deleteSchedule = async (id) => {
   try {
     const response = await axios.delete(
-      "https://servertest.eltatwir.com/api/schedules/deleteSchedule",
+      "http://localhost:3000/api/schedules/deleteSchedule",
 
       {
         data: { id },
@@ -85,7 +85,7 @@ const deleteSchedule = async (id) => {
 const getSchedule = async (id) => {
   try {
     const response = await axios.post(
-      `https://servertest.eltatwir.com/api/schedules/getScheduleById`,
+      `http://localhost:3000/api/schedules/getScheduleById`,
       { id },
       {
         withCredentials: true,
@@ -100,7 +100,7 @@ const getSchedule = async (id) => {
 const updateSchedule = async ({ id, startTime, endTime, day, location }) => {
   try {
     const response = await axios.put(
-      `https://servertest.eltatwir.com/api/schedules/updateSchedule`,
+      `http://localhost:3000/api/schedules/updateSchedule`,
       { id, startTime, endTime, day, location },
 
       {
@@ -116,7 +116,7 @@ const updateSchedule = async ({ id, startTime, endTime, day, location }) => {
 const getAllRegiments = async () => {
   try {
     const response = await axios.get(
-      "https://servertest.eltatwir.com/api/schedules/getAllRegiments",
+      "http://localhost:3000/api/schedules/getAllRegiments",
 
       {
         withCredentials: true,
@@ -132,7 +132,7 @@ const getAllRegiments = async () => {
 const addRegimentApi = async (regiment) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/schedules/addRegiment",
+      "http://localhost:3000/api/schedules/addRegiment",
       {
         name: regiment,
       },
@@ -150,7 +150,7 @@ const addRegimentApi = async (regiment) => {
 const deleteRegimentApi = async (id) => {
   try {
     const response = await axios.delete(
-      "https://servertest.eltatwir.com/api/schedules/deleteRegiment",
+      "http://localhost:3000/api/schedules/deleteRegiment",
 
       {
         data: { id },
@@ -164,6 +164,56 @@ const deleteRegimentApi = async (id) => {
   }
 };
 
+// Get schedule for specific level
+const getLevelSchedule = async (levelId) => {
+  try {
+    const response = await axios.get(
+      `http://localhost:3000/api/schedules/level/${levelId}`,
+      {
+        withCredentials: true,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching level schedule:", error);
+    throw error;
+  }
+};
+
+// Get classroom availability
+const getClassroomAvailability = async (date) => {
+  try {
+    const response = await axios.get(
+      `http://localhost:3000/api/schedules/classrooms/availability`,
+      {
+        params: { date },
+        withCredentials: true,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching classroom availability:", error);
+    throw error;
+  }
+};
+
+// Reserve classroom
+const reserveClassroom = async (classroomId, scheduleData) => {
+  try {
+    const response = await axios.post(
+      `http://localhost:3000/api/schedules/classrooms/${classroomId}/reserve`,
+      scheduleData,
+      {
+        withCredentials: true,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error reserving classroom:", error);
+    throw error;
+  }
+};
+
 export {
   addRegimentApi,
   addSchedule,
@@ -171,6 +221,9 @@ export {
   deleteSchedule,
   getAllFreeRegiments,
   getAllRegiments,
+  getClassroomAvailability,
+  getLevelSchedule,
   getSchedule,
+  reserveClassroom,
   updateSchedule,
 };

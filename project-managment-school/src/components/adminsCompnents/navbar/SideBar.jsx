@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import { NavLink } from "react-router-dom";
 import { getUserByIdApi } from "../../../apiCalls/authCalls";
-import { useSelector } from "react-redux";
 import { selectAuth } from "../../../Redux/slices/authSlice";
 
 function SideBar({ isOpen, setIsOpen }) {
@@ -62,6 +62,9 @@ function SideBar({ isOpen, setIsOpen }) {
           <NavLinkWrapper to="classes/Languages">اللغات</NavLinkWrapper>
           <NavLinkWrapper to="classes/Courses">الدورات</NavLinkWrapper>
           <NavLinkWrapper to="classes/Levels">المستويات</NavLinkWrapper>
+          <NavLinkWrapper to="/admin/schedule/levels">
+            جداول الحصص
+          </NavLinkWrapper>
         </div>
       )}
 
@@ -89,6 +92,9 @@ function SideBar({ isOpen, setIsOpen }) {
           <div className="font-bold px-2">التحكم في الموقع</div>
           <NavLinkWrapper to="/Permission">تحديد الصلاحيات</NavLinkWrapper>
           <NavLinkWrapper to="/additionalWebSite">إضافات الموقع</NavLinkWrapper>
+          <NavLinkWrapper to="/admin/periods">
+            إدارة الفترات الدراسية
+          </NavLinkWrapper>
         </div>
       )}
     </div>

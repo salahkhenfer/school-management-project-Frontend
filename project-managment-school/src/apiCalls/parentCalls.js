@@ -3,7 +3,7 @@ import axios from "axios";
 const addParent = async (parent) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/parents/addParent",
+      "http://localhost:3000/api/parents/addParent",
       {
         fullName: parent.fullName,
         phoneNumber: parent.phoneNumber,
@@ -26,7 +26,7 @@ const addParent = async (parent) => {
 const addStudentInToParent = async (phoneNumber, studentId = "") => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/parents/addStudentInToParent",
+      "http://localhost:3000/api/parents/addStudentInToParent",
       {
         studentId: studentId,
         phoneNumber,
@@ -45,7 +45,7 @@ const addStudentInToParent = async (phoneNumber, studentId = "") => {
 const deleteStudentForParent = async (info) => {
   try {
     const response = await axios.delete(
-      "https://servertest.eltatwir.com/api/parents/deleteStudentForParent",
+      "http://localhost:3000/api/parents/deleteStudentForParent",
 
       {
         data: info,
@@ -61,7 +61,7 @@ const deleteStudentForParent = async (info) => {
 const getAllParents = async () => {
   try {
     const response = await axios.get(
-      "https://servertest.eltatwir.com/api/parents/getAllParents",
+      "http://localhost:3000/api/parents/getAllParents",
       {
         withCredentials: true,
       }
@@ -76,7 +76,7 @@ const getAllParents = async () => {
 const searchParent = async (name) => {
   try {
     const response = await axios.post(
-      `https://servertest.eltatwir.com/api/parents/searchParent`,
+      `http://localhost:3000/api/parents/searchParent`,
       {
         name: name,
       },
@@ -93,7 +93,7 @@ const searchParent = async (name) => {
 const deleteParentApi = async (info) => {
   try {
     const response = await axios.delete(
-      "https://servertest.eltatwir.com/api/parents/deleteParent",
+      "http://localhost:3000/api/parents/deleteParent",
 
       {
         data: info,
@@ -110,7 +110,7 @@ const deleteParentApi = async (info) => {
 const getParentById = async (id) => {
   try {
     const response = await axios.post(
-      `https://servertest.eltatwir.com/api/parents/getParentById`,
+      `http://localhost:3000/api/parents/getParentById`,
       {
         id: id,
       },
@@ -128,7 +128,7 @@ const getParentById = async (id) => {
 const checkParentApi = async (phoneNumber) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/parents/checkParent",
+      "http://localhost:3000/api/parents/checkParent",
       {
         phoneNumber: phoneNumber,
       },
@@ -147,7 +147,7 @@ const checkParentApi = async (phoneNumber) => {
 const deleteStudentFormParent = async (info) => {
   try {
     const response = await axios.delete(
-      "https://servertest.eltatwir.com/api/parents/deleteStudentFormParent",
+      "http://localhost:3000/api/parents/deleteStudentFormParent",
       {
         data: info,
         withCredentials: true,
@@ -163,7 +163,7 @@ const deleteStudentFormParent = async (info) => {
 const countParentsApi = async () => {
   try {
     const response = await axios.get(
-      "https://servertest.eltatwir.com/api/parents/countParents",
+      "http://localhost:3000/api/parents/countParents",
       {
         withCredentials: true,
       }
@@ -179,7 +179,7 @@ const getParentWithUser = async (user) => {
   console.log(user);
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/parents/getParentWithUser",
+      "http://localhost:3000/api/parents/getParentWithUser",
       {
         name: user.name,
         email: user.email,
@@ -199,7 +199,7 @@ const getParentWithUser = async (user) => {
 const updateParent = async (parent) => {
   try {
     const response = await axios.put(
-      "https://servertest.eltatwir.com/api/parents/updateParent",
+      "http://localhost:3000/api/parents/updateParent",
       parent,
       {
         withCredentials: true,

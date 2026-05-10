@@ -8,7 +8,7 @@ const addPaymentTeacher = async (
 ) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/paymentTeacher/addPaymentTeacher",
+      "http://localhost:3000/api/paymentTeacher/addPaymentTeacher",
       {
         teacherId,
         groupId,
@@ -28,7 +28,7 @@ const addPaymentTeacher = async (
 const getPaymentByGroup = async (groupId) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/payments/getPaymentByGroup",
+      "http://localhost:3000/api/payments/getPaymentByGroup",
       {
         groupId,
       },
@@ -46,7 +46,7 @@ const getPaymentByGroup = async (groupId) => {
 const getPaymentByTeacher = async (teacherId) => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/paymentTeacher/getPaymentTeacher",
+      "http://localhost:3000/api/paymentTeacher/getPaymentTeacher",
       teacherId,
       {
         withCredentials: true,
@@ -62,7 +62,7 @@ const getPaymentByTeacher = async (teacherId) => {
 const getAllPaymentsTeacher = async () => {
   try {
     const response = await axios.post(
-      "https://servertest.eltatwir.com/api/paymentTeacher/getAllPayments",
+      "http://localhost:3000/api/paymentTeacher/getAllPayments",
       {
         withCredentials: true,
       }

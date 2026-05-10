@@ -1,7 +1,7 @@
 import axios from "axios";
 import { CategoryScale } from "chart.js";
 import Chart from "chart.js/auto";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { BarChartEach } from "./BarChartEach";
 
 Chart.register(CategoryScale);
@@ -26,7 +26,7 @@ function BarChart() {
     const fetchData = async () => {
       try {
         const response = await axios.get(
-          "https://servertest.eltatwir.com/api/students/monthly-student-count"
+          "http://localhost:3000/api/students/monthly-student-count"
         );
         const data = response.data;
 

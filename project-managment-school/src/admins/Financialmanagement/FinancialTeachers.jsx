@@ -1,35 +1,22 @@
-import React, { useEffect, useState } from "react";
 import {
-  Table,
-  TableHeader,
-  TableColumn,
-  TableBody,
-  TableRow,
-  TableCell,
-  getKeyValue,
-  Select,
-  SelectItem,
   Button,
-  Spinner,
-  Modal,
-  ModalContent,
-  useDisclosure,
+  getKeyValue,
   Pagination,
+  Spinner,
+  Table,
+  TableBody,
+  TableCell,
+  TableColumn,
+  TableHeader,
+  TableRow,
+  useDisclosure,
 } from "@nextui-org/react";
-import * as Yup from "yup";
-import { Form, Link, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
-import { ErrorMessage, Field, Formik } from "formik";
 import { Input } from "@nextui-org/react";
-import Swal from "sweetalert2";
-import { IoIosAddCircle } from "react-icons/io";
-import { MdDelete } from "react-icons/md";
-import { FaEye, FaEyeSlash, FaSearch } from "react-icons/fa";
-import {
-  getAllTeachers,
-  addTeacherApi,
-  searchTeacherApi,
-} from "../../apiCalls/teacherCalls";
+import { FaSearch } from "react-icons/fa";
+import { getAllTeachers, searchTeacherApi } from "../../apiCalls/teacherCalls";
 // import { getAllSubjects } from "../../apiCalls/subjectCalls";
 
 function FinancialTeachers() {
@@ -48,7 +35,14 @@ function FinancialTeachers() {
   const fetchTeachers = async () => {
     setLoadingTeachers(true);
     const newList = await getAllTeachers();
-    setTeachers(newList);
+    // Check if newList is an array or an object with data property
+    if (Array.isArray(newList)) {
+      setTeachers(newList);
+    } else if (newList && newList.data) {
+      setTeachers(newList.data);
+    } else {
+      setTeachers([]);
+    }
     setLoadingTeachers(false);
   };
 
@@ -62,7 +56,14 @@ function FinancialTeachers() {
       return fetchTeachers();
     }
     const newList = await searchTeacherApi(searchTeacher);
-    setTeachers(newList);
+    // Check if newList is an array or an object with data property
+    if (Array.isArray(newList)) {
+      setTeachers(newList);
+    } else if (newList && newList.data) {
+      setTeachers(newList.data);
+    } else {
+      setTeachers([]);
+    }
   };
 
   return (
@@ -120,13 +121,20 @@ function FinancialTeachers() {
               </div>
             </div>
           ) : (
-            <Table className="min-h-[60vh] " isHeaderSticky>
+            <Table
+              className="min-h-[60vh] "
+              isHeaderSticky
+              aria-label="Teachers table"
+            >
               <TableHeader>
                 <TableColumn key="id">رمز المعلم</TableColumn>
                 <TableColumn key="fullName">اسم المعلم</TableColumn>
                 <TableColumn key="phoneNumber">رقم الهاتف </TableColumn>
               </TableHeader>
-              <TableBody items={teachers}>
+              <TableBody
+                items={Array.isArray(teachers) ? teachers : []}
+                emptyContent="لا يوجد معلمين"
+              >
                 {(item) => (
                   <TableRow
                     className="hover:bg-gray-100 border-b-2 border-gray-200 transition-all duration-200 ease-in-out h-4 cursor-pointer"

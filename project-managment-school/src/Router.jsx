@@ -1,38 +1,41 @@
 import { createBrowserRouter } from "react-router-dom";
-import App from "./App";
-import Languages from "./admins/classes/Languages";
+import ClassroomAvailability from "./admins/classes/ClassroomAvailability";
 import Courses from "./admins/classes/Courses";
-import Levels from "./admins/classes/Levels";
-import Groups from "./admins/groups/Groups";
+import Languages from "./admins/classes/Languages";
 import LanguagesLavels from "./admins/classes/LanguagesLavels";
-import LevelYears from "./admins/classes/LevelYears";
 import LevelModuls from "./admins/classes/LevelModuls";
-import Group from "./admins/groups/Group";
-import { Login } from "./login/Login";
-import Statistics from "./admins/statistics/Statistics";
+import Levels from "./admins/classes/Levels";
+import LevelSchedule from "./admins/classes/LevelSchedule";
+import LevelYears from "./admins/classes/LevelYears";
 import AdditionalWebSite from "./admins/controlWebsite/AdditionalWebSite";
+import PeriodManagement from "./admins/controlWebsite/PeriodManagement";
 import RegimentControl from "./admins/controlWebsite/RegimentControl";
+import FinancialEmployer from "./admins/Financialmanagement/FinancialEmployer";
+import FinancialTeachers from "./admins/Financialmanagement/FinancialTeachers";
+import Group from "./admins/groups/Group";
+import Groups from "./admins/groups/Groups";
+import AllUsersPermission from "./admins/permissions/AllUsersPermission";
+import Permission from "./admins/permissions/permission";
+import Statistics from "./admins/statistics/Statistics";
+import Parents from "./admins/UsersAndAdditional/Parents";
 import Students from "./admins/UsersAndAdditional/Students";
 import Teachers from "./admins/UsersAndAdditional/Teachers";
-import Parents from "./admins/UsersAndAdditional/Parents";
-import StudentsInfo from "./components/adminsCompnents/UsersAndAdditional/StudentsInfo";
-import ParentInfo from "./components/adminsCompnents/UsersAndAdditional/ParentInfo";
-import TeacherInfo from "./components/adminsCompnents/UsersAndAdditional/TeacherInfo";
-import FinancialTeachers from "./admins/Financialmanagement/FinancialTeachers";
+import App from "./App";
 import FinancialTeachersInfo from "./components/adminsCompnents/Financialmanagement/FinancialTeachersInfo";
 import TransitionDone from "./components/adminsCompnents/Financialmanagement/TransitionDone";
-import FinancialEmployer from "./admins/Financialmanagement/FinancialEmployer";
-import Permission from "./admins/permissions/permission";
-import AllUsersPermission from "./admins/permissions/AllUsersPermission";
-import TeachersPage from "./teachers/TeachersPage";
-import TeacherGroups from "./teachers/TeacherGroups/TeacherGroups";
-import TeacherGoupe from "./teachers/TeacherGroups/TeacherGoupe";
-import ParentsPage from "./parents/ParentsPage";
-import StudentsGroups from "./parents/parentStudentsGroup/StudentsGroups";
-import SendReport from "./parents/parentStudentsGroup/SendReport";
 import MessagesAdmin from "./components/adminsCompnents/MessagesAdmin";
+import ParentInfo from "./components/adminsCompnents/UsersAndAdditional/ParentInfo";
+import StudentsInfo from "./components/adminsCompnents/UsersAndAdditional/StudentsInfo";
+import TeacherInfo from "./components/adminsCompnents/UsersAndAdditional/TeacherInfo";
 import ErrorElement from "./components/ErrorElement";
 import Not_Found from "./components/Not_Found";
+import { Login } from "./login/Login";
+import ParentsPage from "./parents/ParentsPage";
+import SendReport from "./parents/parentStudentsGroup/SendReport";
+import StudentsGroups from "./parents/parentStudentsGroup/StudentsGroups";
+import TeacherGoupe from "./teachers/TeacherGroups/TeacherGoupe";
+import TeacherGroups from "./teachers/TeacherGroups/TeacherGroups";
+import TeachersPage from "./teachers/TeachersPage";
 
 const routes = createBrowserRouter([
   {
@@ -161,6 +164,18 @@ const routes = createBrowserRouter([
       {
         path: "/messages",
         element: <MessagesAdmin />,
+      },
+      {
+        path: "/admin/periods",
+        element: <PeriodManagement />,
+      },
+      {
+        path: "/admin/schedule/levels",
+        element: <LevelSchedule />,
+      },
+      {
+        path: "/admin/classrooms",
+        element: <ClassroomAvailability />,
       },
     ],
   },
