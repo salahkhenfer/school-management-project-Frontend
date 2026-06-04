@@ -84,6 +84,7 @@ function SideBar({ isOpen, setIsOpen }) {
           <div className="font-bold py-2">التسيير المالي</div>
           <NavLinkWrapper to="/Financialmanagement">الأستاذ</NavLinkWrapper>
           <NavLinkWrapper to="/FinancialEmployer">العمال</NavLinkWrapper>
+          <NavLinkWrapper to="/debts">قائمة الديون</NavLinkWrapper>
         </div>
       )}
 

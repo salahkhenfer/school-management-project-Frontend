@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 
 const deleteStudent = async (id) => {
   try {
@@ -26,7 +26,7 @@ const getAllStudent = async (page) => {
       }
     );
     console.log(response.data);
-    return response.data; // افتراض أن `response.data` يحتوي على الحقول `students` و `totalStudents`
+    return response.data; // ط§ظپطھط±ط§ط¶ ط£ظ† `response.data` ظٹط­طھظˆظٹ ط¹ظ„ظ‰ ط§ظ„ط­ظ‚ظˆظ„ `students` ظˆ `totalStudents`
   } catch (err) {
     console.error("Failed to get all students:", err);
   }

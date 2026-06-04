@@ -38,6 +38,7 @@ import { getSchedule } from "../../apiCalls/scheduleCalls";
 import { deleteStudentFropmGroup } from "../../apiCalls/studentCalls";
 import { getAllTeachers } from "../../apiCalls/teacherCalls";
 import LineAddTime from "../../components/adminsCompnents/groups/LineAddTime";
+import AttendanceList from "../../components/adminsCompnents/groups/AttendanceList";
 import { font } from "../../assets/Cairo-VariableFont_slnt,wght-normal";
 
 import pdfMake from "pdfmake/build/pdfmake";
@@ -57,6 +58,7 @@ function Group() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("1");
   const [addGroup, setAddGroup] = useState(false);
   const [data, setData] = useState([]);
+  const [isAttendanceOpen, setIsAttendanceOpen] = useState(false);
   const pathname = useLocation().pathname;
 
   const handlePaymentMethodChange = (event) => {
@@ -513,6 +515,14 @@ function Group() {
               تحميل القائمة
             </Button>
             <Button
+              onClick={() => setIsAttendanceOpen(true)}
+              color="warning"
+              className="text-white"
+              startContent={<FaPrint />}
+            >
+              قائمة الحضور
+            </Button>
+            <Button
               className="text-white"
               color={!isCompleted ? "success" : "default"} // Adjust color based on status
               variant="solid"
@@ -643,6 +653,31 @@ function Group() {
             </TableBody>
           </Table>
         )}
+        {/* Attendance list (printable + Excel/Word export) */}
+        <Modal
+          isOpen={isAttendanceOpen}
+          onClose={() => setIsAttendanceOpen(false)}
+          size="5xl"
+          scrollBehavior="inside"
+        >
+          <ModalContent>
+            <div className="p-4">
+              <AttendanceList
+                groupData={{
+                  name: group?.name,
+                  teacher: group?.teachers?.slice(-1)[0]?.fullName || "",
+                  subject: group?.name,
+                  startTime: "",
+                  endTime: "",
+                  room: group?.location || "",
+                }}
+                students={student}
+                date={new Date()}
+              />
+            </div>
+          </ModalContent>
+        </Modal>
+
         <Modal
           isOpen={isOpen}
           onOpenChange={onOpenChange}

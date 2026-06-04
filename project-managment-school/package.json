@@ -1,20 +1,14 @@
 {
   "name": "vite-project",
-  "homepage": "http://test.eltatwir.com/",
+  "homepage": "http://eltatwir.com/",
   "version": "0.0.0",
   "type": "module",
-  // "scripts": {
-  //   "dev": "vite",
-  //   "build": "vite build",
-  //   "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-  //   "preview": "vite preview"
-  // },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  }
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
+  },
   "dependencies": {
     "@nextui-org/react": "^2.4.2",
     "@react-pdf-viewer/core": "^3.12.0",

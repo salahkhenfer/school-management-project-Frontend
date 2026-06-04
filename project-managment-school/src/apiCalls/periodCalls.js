@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 
 const API_URL = "http://localhost:3000/api";
 
@@ -70,6 +70,21 @@ export const closePeriodAndStartNew = async (
     return response.data;
   } catch (error) {
     console.error("Error closing period and starting new:", error);
+    throw error;
+  }
+};
+
+// Auto-renew: close the active period (when its month/sessions are complete)
+// and open the next month's period automatically. Pass { force: true } to
+// renew immediately even before the calendar end date.
+export const autoRenewPeriod = async (options = {}) => {
+  try {
+    const response = await axios.post(`${API_URL}/periods/auto-renew`, options, {
+      withCredentials: true,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error auto-renewing period:", error);
     throw error;
   }
 };

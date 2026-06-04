@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 
 const API_URL = "http://localhost:3000/api";
 
@@ -19,13 +19,13 @@ export const getStudentClassCount = async (studentId, periodId) => {
   }
 };
 
-// Get remaining classes for student
-export const getRemainingClasses = async (studentId, periodId) => {
+// Get remaining classes for student (requires the groupId)
+export const getRemainingClasses = async (studentId, groupId) => {
   try {
     const response = await axios.get(
       `${API_URL}/classes/student/${studentId}/remaining`,
       {
-        params: { periodId },
+        params: { groupId },
         withCredentials: true,
       }
     );
@@ -36,12 +36,29 @@ export const getRemainingClasses = async (studentId, periodId) => {
   }
 };
 
+// Get the monthly fee after deducting missed/unattended sessions
+export const getFeeAdjustment = async (studentId, groupId, periodId) => {
+  try {
+    const response = await axios.get(
+      `${API_URL}/classes/student/${studentId}/fee-adjustment`,
+      {
+        params: { groupId, periodId },
+        withCredentials: true,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching fee adjustment:", error);
+    throw error;
+  }
+};
+
 // Update class limit for group
-export const updateGroupClassLimit = async (groupId, limit) => {
+export const updateGroupClassLimit = async (groupId, classLimit) => {
   try {
     const response = await axios.put(
-      `${API_URL}/groups/${groupId}/class-limit`,
-      { limit },
+      `${API_URL}/classes/group/${groupId}/limit`,
+      { classLimit },
       {
         withCredentials: true,
       }

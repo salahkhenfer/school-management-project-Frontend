@@ -12,6 +12,7 @@ import PeriodManagement from "./admins/controlWebsite/PeriodManagement";
 import RegimentControl from "./admins/controlWebsite/RegimentControl";
 import FinancialEmployer from "./admins/Financialmanagement/FinancialEmployer";
 import FinancialTeachers from "./admins/Financialmanagement/FinancialTeachers";
+import StudentDebts from "./admins/Financialmanagement/StudentDebts";
 import Group from "./admins/groups/Group";
 import Groups from "./admins/groups/Groups";
 import AllUsersPermission from "./admins/permissions/AllUsersPermission";
@@ -140,6 +141,10 @@ const routes = createBrowserRouter([
       {
         path: "/FinancialEmployer",
         element: <FinancialEmployer />,
+      },
+      {
+        path: "/debts",
+        element: <StudentDebts />,
       },
       {
         path: "/Financialmanagement/:FinancialTeachersParams",

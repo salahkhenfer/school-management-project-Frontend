@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import * as Yup from "yup";
 import {
+  autoRenewPeriod,
   createPeriod,
   getActivePeriod,
   getAllPeriods,
@@ -24,14 +25,14 @@ const PeriodManagement = () => {
   const [loading, setLoading] = useState(false);
 
   const validationSchema = Yup.object({
-    name: Yup.string().required("Period name is required"),
-    startDate: Yup.date().required("Start date is required"),
+    name: Yup.string().required("اسم الفترة مطلوب"),
+    startDate: Yup.date().required("تاريخ البداية مطلوب"),
     endDate: Yup.date()
-      .required("End date is required")
-      .min(Yup.ref("startDate"), "End date must be after start date"),
+      .required("تاريخ النهاية مطلوب")
+      .min(Yup.ref("startDate"), "يجب أن يكون تاريخ النهاية بعد تاريخ البداية"),
     totalClasses: Yup.number()
-      .required("Total classes is required")
-      .min(1, "Must be at least 1 class"),
+      .required("عدد الحصص مطلوب")
+      .min(1, "يجب أن تكون حصة واحدة على الأقل"),
   });
 
   useEffect(() => {
@@ -41,8 +42,9 @@ const PeriodManagement = () => {
 
   const fetchPeriods = async () => {
     try {
-      const data = await getAllPeriods();
-      setPeriods(data);
+      const res = await getAllPeriods();
+      // API returns { success, data: [...] }
+      setPeriods(Array.isArray(res) ? res : res?.data || []);
     } catch (error) {
       console.error("Error fetching periods:", error);
     }
@@ -50,10 +52,44 @@ const PeriodManagement = () => {
 
   const fetchActivePeriod = async () => {
     try {
-      const data = await getActivePeriod();
-      setActivePeriod(data);
+      const res = await getActivePeriod();
+      setActivePeriod(res?.data || res || null);
     } catch (error) {
-      console.error("Error fetching active period:", error);
+      // 404 means no active period yet; not a real error
+      setActivePeriod(null);
+    }
+  };
+
+  const handleAutoRenew = async () => {
+    const result = await Swal.fire({
+      title: "تجديد الفترة الآن؟",
+      text: "سيتم إغلاق الفترة الحالية وفتح فترة الشهر التالي مباشرةً.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "نعم, جدّد الآن",
+      cancelButtonText: "إلغاء",
+    });
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await autoRenewPeriod({ force: true });
+      if (res?.success) {
+        Swal.fire({
+          icon: "success",
+          title: "تم التجديد",
+          text: `الفترة النشطة الجديدة: ${res.data?.newPeriod?.name || ""}`,
+        });
+        fetchPeriods();
+        fetchActivePeriod();
+      } else {
+        Swal.fire({ icon: "info", title: "تنبيه", text: res?.message || "لا يوجد ما يُجدَّد" });
+      }
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "خطأ",
+        text: error.response?.data?.message || "فشل تجديد الفترة",
+      });
     }
   };
 
@@ -63,8 +99,8 @@ const PeriodManagement = () => {
       await createPeriod(values);
       Swal.fire({
         icon: "success",
-        title: "Success!",
-        text: "Period created successfully",
+        title: "تم بنجاح!",
+        text: "تم إنشاء الفترة بنجاح",
       });
       resetForm();
       setIsOpen(false);
@@ -73,8 +109,8 @@ const PeriodManagement = () => {
     } catch (error) {
       Swal.fire({
         icon: "error",
-        title: "Error",
-        text: error.response?.data?.message || "Failed to create period",
+        title: "خطأ",
+        text: error.response?.data?.message || "فشل إنشاء الفترة",
       });
     } finally {
       setLoading(false);
@@ -83,12 +119,12 @@ const PeriodManagement = () => {
 
   const handleClosePeriodAndStartNew = async () => {
     const result = await Swal.fire({
-      title: "Close Current Period?",
-      text: "This will close the current period and create a new one. Students can be re-registered.",
+      title: "إغلاق الفترة الحالية؟",
+      text: "سيؤدي هذا إلى إغلاق الفترة الحالية وإنشاء فترة جديدة. يمكن إعادة تسجيل التلاميذ.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "Yes, proceed",
-      cancelButtonText: "Cancel",
+      confirmButtonText: "نعم, متابعة",
+      cancelButtonText: "إلغاء",
     });
 
     if (result.isConfirmed) {
@@ -97,16 +133,21 @@ const PeriodManagement = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6" dir="rtl">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Period Management</h2>
+        <h2 className="text-2xl font-bold">إدارة الفترات الدراسية</h2>
         <div className="flex gap-2">
           <Button color="primary" onPress={() => setIsOpen(true)}>
-            New Period
+            فترة جديدة
           </Button>
           {activePeriod && (
-            <Button color="warning" onPress={handleClosePeriodAndStartNew}>
-              Close Period & Start New
+            <Button color="warning" className="text-white" onPress={handleClosePeriodAndStartNew}>
+              إغلاق الفترة وبدء جديدة
+            </Button>
+          )}
+          {activePeriod && (
+            <Button color="success" className="text-white" onPress={handleAutoRenew}>
+              تجديد تلقائي (الشهر التالي)
             </Button>
           )}
         </div>
@@ -114,17 +155,17 @@ const PeriodManagement = () => {
 
       {activePeriod && (
         <div className="bg-blue-50 p-4 rounded-lg mb-6">
-          <h3 className="text-lg font-semibold mb-2">Active Period</h3>
+          <h3 className="text-lg font-semibold mb-2">الفترة النشطة</h3>
           <p>
-            <strong>Name:</strong> {activePeriod.name}
+            <strong>الاسم:</strong> {activePeriod.name}
           </p>
           <p>
-            <strong>Duration:</strong>{" "}
+            <strong>المدة:</strong>{" "}
             {new Date(activePeriod.startDate).toLocaleDateString()} -{" "}
             {new Date(activePeriod.endDate).toLocaleDateString()}
           </p>
           <p>
-            <strong>Total Classes:</strong> {activePeriod.totalClasses}
+            <strong>عدد الحصص:</strong> {activePeriod.totalClasses}
           </p>
         </div>
       )}
@@ -134,7 +175,9 @@ const PeriodManagement = () => {
           <div
             key={period.id}
             className={`p-4 rounded-lg border ${
-              period.isActive ? "border-blue-500 bg-blue-50" : "border-gray-300"
+              period.status === "active"
+                ? "border-blue-500 bg-blue-50"
+                : "border-gray-300"
             }`}
           >
             <h4 className="font-semibold">{period.name}</h4>
@@ -142,12 +185,18 @@ const PeriodManagement = () => {
               {new Date(period.startDate).toLocaleDateString()} -{" "}
               {new Date(period.endDate).toLocaleDateString()}
             </p>
-            <p className="text-sm">Classes: {period.totalClasses}</p>
-            {period.isActive && (
-              <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded mt-2 inline-block">
-                Active
-              </span>
-            )}
+            <p className="text-sm">الحصص: {period.totalClasses}</p>
+            <span
+              className={`text-xs px-2 py-1 rounded mt-2 inline-block ${
+                period.status === "active"
+                  ? "bg-blue-500 text-white"
+                  : period.status === "closed"
+                  ? "bg-gray-400 text-white"
+                  : "bg-yellow-400 text-black"
+              }`}
+            >
+              {period.status}
+            </span>
           </div>
         ))}
       </div>
@@ -166,15 +215,15 @@ const PeriodManagement = () => {
           >
             {({ errors, touched, setFieldValue, values }) => (
               <Form>
-                <ModalHeader>Create New Period</ModalHeader>
+                <ModalHeader>إنشاء فترة جديدة</ModalHeader>
                 <ModalBody>
-                  <div className="space-y-4">
+                  <div className="space-y-4" dir="rtl">
                     <Field name="name">
                       {({ field }) => (
                         <Input
                           {...field}
-                          label="Period Name"
-                          placeholder="e.g., January 2025"
+                          label="اسم الفترة"
+                          placeholder="مثال: جانفي 2025"
                           isInvalid={errors.name && touched.name}
                           errorMessage={errors.name}
                         />
@@ -186,7 +235,7 @@ const PeriodManagement = () => {
                         <Input
                           {...field}
                           type="date"
-                          label="Start Date"
+                          label="تاريخ البداية"
                           isInvalid={errors.startDate && touched.startDate}
                           errorMessage={errors.startDate}
                         />
@@ -198,7 +247,7 @@ const PeriodManagement = () => {
                         <Input
                           {...field}
                           type="date"
-                          label="End Date"
+                          label="تاريخ النهاية"
                           isInvalid={errors.endDate && touched.endDate}
                           errorMessage={errors.endDate}
                         />
@@ -210,8 +259,8 @@ const PeriodManagement = () => {
                         <Input
                           {...field}
                           type="number"
-                          label="Total Classes"
-                          placeholder="Enter number of classes"
+                          label="عدد الحصص"
+                          placeholder="أدخل عدد الحصص"
                           isInvalid={
                             errors.totalClasses && touched.totalClasses
                           }
@@ -227,10 +276,10 @@ const PeriodManagement = () => {
                     variant="light"
                     onPress={() => setIsOpen(false)}
                   >
-                    Cancel
+                    إلغاء
                   </Button>
                   <Button color="primary" type="submit" isLoading={loading}>
-                    Create Period
+                    إنشاء الفترة
                   </Button>
                 </ModalFooter>
               </Form>

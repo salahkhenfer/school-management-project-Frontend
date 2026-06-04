@@ -512,16 +512,29 @@ function TeacherGoupe() {
                   >
                     {group?.sessions?.length > index ? (
                       // Check if the session is in the list
-                      <Chip
-                        className="flex justify-start items-center p-2 cursor-pointer"
-                        startContent={<BiCheck size={20} />}
-                        color="success"
-                        onClick={() =>
-                          handleChipClick(group.sessions[index].id)
-                        } // Pass the session ID
-                      >
-                        الحصة {index + 1}
-                      </Chip>
+                      <div className="flex flex-col items-center">
+                        <Chip
+                          className="flex justify-start items-center p-2 cursor-pointer"
+                          startContent={<BiCheck size={20} />}
+                          color="success"
+                          onClick={() =>
+                            handleChipClick(group.sessions[index].id)
+                          } // Pass the session ID
+                        >
+                          الحصة {index + 1}
+                        </Chip>
+                        {(group.sessions[index].sessionDate ||
+                          group.sessions[index].sessionTime) && (
+                          <span className="text-[10px] text-gray-500 mt-1">
+                            {group.sessions[index].sessionDate}
+                            {group.sessions[index].sessionTime
+                              ? ` • ${String(
+                                  group.sessions[index].sessionTime
+                                ).slice(0, 5)}`
+                              : ""}
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       <Chip
                         className="flex justify-start items-center p-2 cursor-pointer"

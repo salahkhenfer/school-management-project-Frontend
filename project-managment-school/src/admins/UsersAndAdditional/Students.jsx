@@ -37,6 +37,7 @@ import Swal from "sweetalert2";
 import { getCourses } from "../../apiCalls/coursesCalls";
 import { getGroups } from "../../apiCalls/GroupsCals";
 import { getAllLanguages } from "../../apiCalls/languagesCalls";
+import { createReceipt } from "../../apiCalls/receiptCalls";
 import {
   addStudent,
   deleteStudent,
@@ -238,9 +239,16 @@ function Students() {
       setStudent([]);
     }
   };
-  const handlePrint = (student) => {
+  const handlePrint = (student, payInfo = {}) => {
     console.log("Print student data:", student);
     console.log("Available groups:", group);
+    const total = parseFloat(student.price) || 0;
+    const paidAmount =
+      payInfo.paidAmount === undefined ? total : Number(payInfo.paidAmount) || 0;
+    const remainingAmount =
+      payInfo.remaining === undefined
+        ? Math.max(total - paidAmount, 0)
+        : Number(payInfo.remaining) || 0;
 
     if (!student || !student.fullName) {
       Swal.fire({
@@ -510,9 +518,23 @@ function Students() {
             <div class="divider-dashed"></div>
             
             <!-- Amount Box -->
-            <div class="amount-box">
-              <div class="amount-label">المبلغ المدفوع</div>
-              <div class="amount-value">${student.price || 0} دج</div>
+            <div class="amount-box" style="flex-direction:column;align-items:stretch;gap:6px;">
+              <div style="display:flex;justify-content:space-between;">
+                <div class="amount-label">المبلغ الإجمالي</div>
+                <div class="amount-value">${total} دج</div>
+              </div>
+              <div style="display:flex;justify-content:space-between;">
+                <div class="amount-label" style="color:#16a34a;">المدفوع</div>
+                <div class="amount-value" style="color:#16a34a;">${paidAmount} دج</div>
+              </div>
+              <div style="display:flex;justify-content:space-between;">
+                <div class="amount-label" style="color:${
+                  remainingAmount > 0 ? "#dc2626" : "#16a34a"
+                };">الباقي</div>
+                <div class="amount-value" style="color:${
+                  remainingAmount > 0 ? "#dc2626" : "#16a34a"
+                };">${remainingAmount} دج</div>
+              </div>
             </div>
             
             <!-- Divider -->
@@ -551,6 +573,90 @@ function Students() {
       });
     }
   };
+
+  // Ask whether the student pays in full or partially (debt), then create a
+  // receipt. If a balance remains, the student automatically appears in the
+  // debt list (receipts with remainingAmount > 0).
+  // Returns { paidAmount, remaining } so the printed receipt can reflect it.
+  const askPaymentAndCreateReceipt = async (createdStudent, groupObj, price) => {
+    const total = parseFloat(price) || 0;
+    const items = [
+      {
+        subject: groupObj?.name || "تسجيل",
+        level: groupObj?.level || "",
+        classes: groupObj?.numberOfSessions || 0,
+        amount: total,
+      },
+    ];
+
+    const choice = await Swal.fire({
+      title: "نوع الدفع",
+      text: `المبلغ الإجمالي: ${total} دج`,
+      icon: "question",
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: "دفع كامل",
+      denyButtonText: "دين (دفع جزئي)",
+      cancelButtonText: "تخطّي",
+      confirmButtonColor: "#16a34a",
+      denyButtonColor: "#d33",
+    });
+
+    // Skipped entirely
+    if (choice.isDismissed && choice.dismiss === Swal.DismissReason.cancel)
+      return { paidAmount: 0, remaining: total, skipped: true };
+
+    let paidAmount = total;
+    if (choice.isDenied) {
+      // Partial payment -> ask how much is paid now
+      const { value, isConfirmed } = await Swal.fire({
+        title: "المبلغ المدفوع الآن",
+        input: "number",
+        inputValue: 0,
+        inputAttributes: { min: 0, max: total },
+        text: `المبلغ الإجمالي ${total} دج — أدخل المبلغ المدفوع`,
+        showCancelButton: true,
+        confirmButtonText: "تسجيل الدين",
+        cancelButtonText: "إلغاء",
+      });
+      if (!isConfirmed) return { paidAmount: 0, remaining: total, skipped: true };
+      paidAmount = Math.min(parseFloat(value) || 0, total);
+    }
+
+    try {
+      const res = await createReceipt({
+        studentId: createdStudent.id,
+        items,
+        totalAmount: total,
+        paidAmount,
+        paymentMethod: "cash",
+      });
+      const remaining =
+        res?.data?.remainingAmount ?? Math.max(total - paidAmount, 0);
+
+      if (Number(remaining) > 0) {
+        await Swal.fire({
+          icon: "info",
+          title: "تمت إضافته إلى قائمة الديون",
+          text: `المدفوع: ${paidAmount} دج — الباقي: ${Number(remaining).toFixed(
+            2
+          )} دج`,
+        });
+      } else {
+        await Swal.fire({
+          icon: "success",
+          title: "تم الدفع كاملاً",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      }
+      return { paidAmount, remaining: Number(remaining) };
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "خطأ", text: "فشل إنشاء الوصل" });
+      return { paidAmount: 0, remaining: total, error: true };
+    }
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center">
@@ -719,8 +825,15 @@ function Students() {
                   console.log(newStudent);
 
                   const response = await addStudent(newStudent);
-                  if (response) {
-                    Swal.fire({
+                  if (response && response.student) {
+                    // Ask full payment vs debt, then record the receipt
+                    const payInfo = await askPaymentAndCreateReceipt(
+                      response.student,
+                      values.group,
+                      newStudent.price
+                    );
+
+                    const printResult = await Swal.fire({
                       position: "center",
                       icon: "success",
                       title: "تمت إضافة التلميذ بنجاح",
@@ -730,14 +843,13 @@ function Students() {
                       cancelButtonText: "لا، شكراً",
                       confirmButtonColor: "#3085d6",
                       cancelButtonColor: "#d33",
-                    }).then((result) => {
-                      if (result.isConfirmed) {
-                        handlePrint(newStudent);
-                      }
-                      resetForm();
-                      onClose();
-                      fetchStudents(); // Refresh the list of students
                     });
+                    if (printResult.isConfirmed) {
+                      handlePrint(newStudent, payInfo);
+                    }
+                    resetForm();
+                    onClose();
+                    fetchStudents(); // Refresh the list of students
                   } else {
                     Swal.fire({
                       position: "center",

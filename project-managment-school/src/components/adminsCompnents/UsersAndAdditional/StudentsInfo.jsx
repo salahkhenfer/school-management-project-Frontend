@@ -27,9 +27,12 @@ import {
   deleteStudentForParent,
 } from "../../../apiCalls/parentCalls";
 import { font } from "../../../assets/Cairo-VariableFont_slnt,wght-normal";
+import MultiSubjectRegistration from "./MultiSubjectRegistration";
+import RemainingClassesCard from "../groups/RemainingClassesCard";
 
 function StudentsInfo() {
   const [student, setStudent] = useState({});
+  const [isMultiOpen, setIsMultiOpen] = useState(false);
   const { studentParams } = useParams();
   const { isOpen, onOpen, onClose } = useDisclosure(); // use onClose instead of onOpenChange
   const [parent, setParent] = useState({});
@@ -586,7 +589,23 @@ function StudentsInfo() {
               طباعة وصل الدفع
               <IoPrint />
             </Button>
+            <Button
+              onClick={() => setIsMultiOpen(true)}
+              size="lg"
+              color="secondary"
+              variant="flat"
+            >
+              تسجيل في عدة مواد
+              <CgAdd />
+            </Button>
           </div>
+
+          {/* Multi-subject registration (combined receipt with paid & remaining) */}
+          <MultiSubjectRegistration
+            studentId={student.id}
+            isOpen={isMultiOpen}
+            onClose={() => setIsMultiOpen(false)}
+          />
           {/* Edit Student Modal */}
           <Modal isOpen={isEditModalOpen} onClose={onEditClose}>
             <ModalContent>
@@ -772,6 +791,20 @@ function StudentsInfo() {
               </div>
             </div>
           ))}
+
+          {/* Remaining classes + monthly fee after deducting absences */}
+          {student?.groups?.length > 0 && student.id && (
+            <div className="space-y-4 mt-4">
+              {student.groups.map((group) => (
+                <RemainingClassesCard
+                  key={`rc-${group.id}`}
+                  studentId={student.id}
+                  groupId={group.id}
+                  groupName={group.name}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
