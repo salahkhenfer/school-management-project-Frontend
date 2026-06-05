@@ -5,7 +5,7 @@ import SideBar from "./components/adminsCompnents/navbar/SideBar";
 import Header from "./components/adminsCompnents/navbar/Header";
 import { Navigate, Outlet, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { checkauth, selectAuth } from "./Redux/slices/authSlice";
+import { checkauth, logout, selectAuth } from "./Redux/slices/authSlice";
 import { checkauthApi } from "./apiCalls/authCalls";
 
 function App() {
@@ -19,23 +19,28 @@ function App() {
     const fetchAuthStatus = async () => {
       try {
         const userData = await checkauthApi();
-        console.log(userData);
-
-        dispatch(checkauth(userData.user));
+        // checkauthApi returns { authenticated, user } or undefined on failure
+        if (userData && userData.user) {
+          dispatch(checkauth(userData.user));
+        } else {
+          dispatch(logout());
+        }
       } catch (err) {
         console.error("Auth check failed:", err);
-        dispatch(checkauth(null));
+        dispatch(logout());
       } finally {
         setLoading(false);
       }
     };
 
-    // fetchAuthStatus();
-  }, []);
+    fetchAuthStatus();
+  }, [dispatch]);
 
-  // if (loading) {
-  //   return <LoadingFirstPage />;
-  // }
+  // While verifying the session (e.g. after a page reload), show the loader
+  // instead of bouncing the user to the login page.
+  if (loading) {
+    return <LoadingFirstPage />;
+  }
 
   if (!user) {
     return <Navigate to="/login" />;

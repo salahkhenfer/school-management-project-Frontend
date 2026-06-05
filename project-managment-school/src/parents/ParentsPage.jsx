@@ -5,55 +5,56 @@ import { getParentWithUser } from "../apiCalls/parentCalls";
 import { Outlet, useNavigate } from "react-router-dom";
 import Header from "../components/adminsCompnents/navbar/Header";
 import { checkauthApi } from "../apiCalls/authCalls";
-import { log10 } from "chart.js/helpers";
+import LoadingFirstPage from "../components/loading/LoadingFirstPage";
 
 function ParentsPage() {
   const { user } = useSelector(selectAuth);
   const dispatch = useDispatch();
   const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const nav = useNavigate();
-  const fetchParent = async () => {
-    try {
-      if (!user) return;
-      const parentData = await getParentWithUser(user);
-      if (parentData) {
-        console.log("Parent data:", parentData);
-        dispatch(
-          checkauth({
-            id: parentData.id,
-            role: "parent",
-            phone: parentData.phoneNumber,
-            email: parentData.email,
-            name: parentData.fullName,
-            ...parentData,
-          })
-        );
-      } else {
-        console.error("Parent data is null or undefined.");
-      }
-    } catch (error) {
-      console.error("Error fetching parent:", error);
-    }
-  };
-  const fetchAuthStatus = async () => {
-    try {
-      const userData = await checkauthApi();
-      console.log("User data:", userData);
-    } catch (err) {
-      dispatch(checkauth(null));
-      nav("/login");
-    }
-  };
 
   useEffect(() => {
-    if (!user) {
-      nav("/login");
-    } else {
-      fetchParent();
-    }
-    // fetchParent();
-    // fetchAuthStatus();
+    const init = async () => {
+      try {
+        // Restore the session from the cookie if Redux was reset (page reload)
+        let current = user;
+        if (!current) {
+          const data = await checkauthApi();
+          if (data && data.user) {
+            current = data.user;
+            dispatch(checkauth(current));
+          } else {
+            nav("/login");
+            return;
+          }
+        }
+        const parentData = await getParentWithUser(current);
+        if (parentData) {
+          dispatch(
+            checkauth({
+              id: parentData.id,
+              role: "parent",
+              phone: parentData.phoneNumber,
+              email: parentData.email,
+              name: parentData.fullName,
+              ...parentData,
+            })
+          );
+        }
+      } catch (error) {
+        console.error("Error initializing parent page:", error);
+        nav("/login");
+      } finally {
+        setLoading(false);
+      }
+    };
+    init();
   }, []);
+
+  if (loading) {
+    return <LoadingFirstPage />;
+  }
 
   return (
     <div className="font-cairo">

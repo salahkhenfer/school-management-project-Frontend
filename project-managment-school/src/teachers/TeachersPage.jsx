@@ -7,6 +7,7 @@ import { checkauthApi } from "../apiCalls/authCalls";
 import { useDispatch, useSelector } from "react-redux";
 import { checkauth, selectAuth } from "../Redux/slices/authSlice";
 import { getTeacherWithUser } from "../apiCalls/teacherCalls";
+import LoadingFirstPage from "../components/loading/LoadingFirstPage";
 
 function TeachersPage() {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -15,34 +16,48 @@ function TeachersPage() {
   const dispatch = useDispatch();
   const nav = useNavigate();
 
-  const fetchGroups = async () => {
-    try {
-      console.log("Fetching groups... ,", user);
-      const newList = await getTeacherWithUser(user); // Fetch the list of groups
-      console.log(newList);
-      if (newList) {
-        dispatch(
-          checkauth({
-            id: newList.id,
-            role: "teacher",
-            phone: newList.phoneNumber,
-            email: newList.email,
-            name: newList.fullName,
-            ...newList,
-          })
-        );
-      }
-    } catch (error) {
-      console.error("Error fetching groups:", error);
-    }
-  };
   useEffect(() => {
-    if (!user) {
-      nav("/login");
-    } else {
-      fetchGroups();
-    }
+    const init = async () => {
+      try {
+        // Restore the session from the cookie if Redux was reset (page reload)
+        let current = user;
+        if (!current) {
+          const data = await checkauthApi();
+          if (data && data.user) {
+            current = data.user;
+            dispatch(checkauth(current));
+          } else {
+            nav("/login");
+            return;
+          }
+        }
+        // Enrich with the teacher profile
+        const newList = await getTeacherWithUser(current);
+        if (newList) {
+          dispatch(
+            checkauth({
+              id: newList.id,
+              role: "teacher",
+              phone: newList.phoneNumber,
+              email: newList.email,
+              name: newList.fullName,
+              ...newList,
+            })
+          );
+        }
+      } catch (error) {
+        console.error("Error initializing teacher page:", error);
+        nav("/login");
+      } finally {
+        setLoading(false);
+      }
+    };
+    init();
   }, []);
+
+  if (loading) {
+    return <LoadingFirstPage />;
+  }
 
   return (
     <div className="font-cairo">
