@@ -93,9 +93,6 @@ function SideBar({ isOpen, setIsOpen }) {
           <div className="font-bold px-2">التحكم في الموقع</div>
           <NavLinkWrapper to="/Permission">تحديد الصلاحيات</NavLinkWrapper>
           <NavLinkWrapper to="/additionalWebSite">إضافات الموقع</NavLinkWrapper>
-          <NavLinkWrapper to="/admin/periods">
-            إدارة الفترات الدراسية
-          </NavLinkWrapper>
         </div>
       )}
     </div>

@@ -1,18 +1,30 @@
 import { Bar } from "react-chartjs-2";
+
 export const BarChartEach = ({ chartData }) => {
   return (
-    <div className="chart-container md:w-[60%]  md:h-[40%]">
-      <h2 style={{ textAlign: "center" }}>عدد التلاميذ في كل شهر</h2>
+    <div className="w-full" style={{ height: 340 }}>
       <Bar
         data={chartData}
         options={{
+          responsive: true,
+          maintainAspectRatio: false,
           plugins: {
-            title: {
-              display: false,
-              text: "عدد التلاميذ في كل شهر",
+            title: { display: false },
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: "#111827",
+              padding: 10,
+              cornerRadius: 8,
             },
-            legend: {
-              display: false,
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { precision: 0 },
+              grid: { color: "#eef2f7" },
+            },
+            x: {
+              grid: { display: false },
             },
           },
         }}

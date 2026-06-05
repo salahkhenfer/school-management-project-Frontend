@@ -45,8 +45,9 @@ function BarChart() {
               label: "Number of Students",
               data: studentsData,
               backgroundColor: backgroundColors,
-              borderColor: "black",
-              borderWidth: 2,
+              borderRadius: 8,
+              borderWidth: 0,
+              maxBarThickness: 48,
             },
           ],
         });

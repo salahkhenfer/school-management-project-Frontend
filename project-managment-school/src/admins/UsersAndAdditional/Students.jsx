@@ -38,8 +38,10 @@ import { getCourses } from "../../apiCalls/coursesCalls";
 import { getGroups } from "../../apiCalls/GroupsCals";
 import { getAllLanguages } from "../../apiCalls/languagesCalls";
 import { createReceipt } from "../../apiCalls/receiptCalls";
+import { getRegistrationPrice } from "../../apiCalls/classControlCalls";
 import {
   addStudent,
+  addStudentToGroup,
   deleteStudent,
   getAllStudent,
   searchStudentApi,
@@ -65,6 +67,12 @@ function Students() {
   const [selectedGroup, setSelectedGroup] = useState("");
   const [selcetYear, setSelcetYear] = useState("");
   const [selectedModule, setSelectedModule] = useState("");
+  // An already-registered student picked from the search (skip re-registering)
+  const [existingStudent, setExistingStudent] = useState(null);
+  // Courses chosen for this registration: [{ groupId, groupName, price }]
+  const [selectedCourses, setSelectedCourses] = useState([]);
+  // Pricing info for the currently selected group (remaining-sessions price)
+  const [priceInfo, setPriceInfo] = useState(null);
   const level = [
     {
       id: 1,
@@ -153,14 +161,10 @@ function Students() {
     theYear: "",
     theModule: "",
   };
+  // Only the name is validated by Formik; courses / birthday are checked
+  // manually in onSubmit so the multi-course + existing-student flow stays flexible.
   const validationSchema = Yup.object().shape({
     studentName: Yup.string().required("اسم التلميذ مطلوب"),
-    birthDay: Yup.date().required("تاريخ الميلاد مطلوب"),
-    ClassChoose: Yup.string().required("اختر نوع الفصل"),
-    group: Yup.object().shape({
-      id: Yup.number().required("اختر الفوج"),
-      price: Yup.number().required("السعر مطلوب"),
-    }),
   });
   const deleteStudentApi = async (index, id) => {
     try {
@@ -260,8 +264,9 @@ function Students() {
     }
 
     try {
-      const groupName = group.find((item) => item.id === student.groupId);
-      console.log("Found group:", groupName);
+      const groupObj = group.find((item) => item.id === student.groupId);
+      // Prefer an explicit label (combined course names) when provided
+      const groupLabel = student.groupName || groupObj?.name || "غير محدد";
 
       // Generate receipt number
       const receiptNumber = `${new Date().getFullYear()}-${String(
@@ -510,7 +515,7 @@ function Students() {
               </div>
               <div class="details-row">
                 <div class="details-label">الفوج</div>
-                <div class="details-value">${groupName?.name || "غير محدد"}</div>
+                <div class="details-value">${groupLabel}</div>
               </div>
             </div>
             
@@ -574,20 +579,19 @@ function Students() {
     }
   };
 
-  // Ask whether the student pays in full or partially (debt), then create a
-  // receipt. If a balance remains, the student automatically appears in the
-  // debt list (receipts with remainingAmount > 0).
+  // Ask whether the student pays in full or partially (debt), then create one
+  // combined receipt for all the chosen courses. If a balance remains, the
+  // student automatically appears in the debt list.
+  // `courses` = [{ groupName, price, numberOfSessions }]
   // Returns { paidAmount, remaining } so the printed receipt can reflect it.
-  const askPaymentAndCreateReceipt = async (createdStudent, groupObj, price) => {
-    const total = parseFloat(price) || 0;
-    const items = [
-      {
-        subject: groupObj?.name || "تسجيل",
-        level: groupObj?.level || "",
-        classes: groupObj?.numberOfSessions || 0,
-        amount: total,
-      },
-    ];
+  const askPaymentAndCreateReceipt = async (createdStudent, courses) => {
+    const items = courses.map((c) => ({
+      subject: c.groupName || "تسجيل",
+      level: "",
+      classes: c.numberOfSessions || 0,
+      amount: parseFloat(c.price) || 0,
+    }));
+    const total = items.reduce((s, it) => s + it.amount, 0);
 
     const choice = await Swal.fire({
       title: "نوع الدفع",
@@ -799,6 +803,7 @@ function Students() {
         isOpen={isOpen}
         onOpenChange={onOpenChange}
         scrollBehavior="inside"
+        size="2xl"
       >
         <ModalContent className="w-full">
           {(onClose) => (
@@ -807,36 +812,98 @@ function Students() {
                 initialValues={initialValues}
                 validationSchema={validationSchema}
                 onSubmit={async (values, { resetForm }) => {
-                  console.log(values);
-                  // Handle form submission
                   const formatDate = (dateObj) => {
-                    const day = String(dateObj.day).padStart(2, "0");
-                    const month = String(dateObj.month).padStart(2, "0");
-                    const year = dateObj.year;
-                    return `${month}-${day}-${year}`;
-                  };
-                  const newStudent = {
-                    fullName: values.studentName.trim(),
-                    birthDay: formatDate(values.birthDay),
-                    groupId: values.group.id,
-                    price: values.group.price,
+                    if (!dateObj) return "";
+                    // NextUI CalendarDate ({year,month,day}) or a JS Date
+                    if (dateObj.year && dateObj.month && dateObj.day) {
+                      const day = String(dateObj.day).padStart(2, "0");
+                      const month = String(dateObj.month).padStart(2, "0");
+                      return `${month}-${day}-${dateObj.year}`;
+                    }
+                    const d = new Date(dateObj);
+                    return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+                      d.getDate()
+                    ).padStart(2, "0")}-${d.getFullYear()}`;
                   };
 
-                  console.log(newStudent);
+                  const name = (values.studentName || "").trim();
 
-                  const response = await addStudent(newStudent);
-                  if (response && response.student) {
-                    // Ask full payment vs debt, then record the receipt
-                    const payInfo = await askPaymentAndCreateReceipt(
-                      response.student,
-                      values.group,
-                      newStudent.price
+                  // Build the courses to register: the list + the one currently selected
+                  const courses = [...selectedCourses];
+                  if (values.group && values.group.id) {
+                    courses.push({
+                      groupId: values.group.id,
+                      groupName: values.group.name,
+                      price: values.group.price,
+                      numberOfSessions: values.group.numberOfSessions,
+                    });
+                  }
+
+                  // Manual validation with friendly alerts
+                  if (!name) {
+                    Swal.fire({ icon: "warning", title: "الاسم مطلوب", text: "أدخل اسم التلميذ" });
+                    return;
+                  }
+                  if (courses.length === 0) {
+                    Swal.fire({
+                      icon: "warning",
+                      title: "لا توجد دورة",
+                      text: 'اختر فوجاً واضغط "أضف الدورة" أولاً',
+                    });
+                    return;
+                  }
+                  if (!existingStudent && !values.birthDay) {
+                    Swal.fire({
+                      icon: "warning",
+                      title: "تاريخ الميلاد مطلوب",
+                      text: "أدخل تاريخ ميلاد التلميذ الجديد",
+                    });
+                    return;
+                  }
+
+                  try {
+                    let studentObj = existingStudent;
+
+                    if (existingStudent) {
+                      // Existing student: just add the courses (no re-registration)
+                      for (const c of courses) {
+                        await addStudentToGroup(existingStudent.id, c.groupId, c.price);
+                      }
+                    } else {
+                      // New student: create with the first course, add the rest
+                      const birthDay = formatDate(values.birthDay);
+                      const first = courses[0];
+                      const res = await addStudent({
+                        fullName: name,
+                        birthDay,
+                        groupId: first.groupId,
+                        price: first.price,
+                      });
+                      if (!res || !res.student) {
+                        Swal.fire({
+                          icon: "error",
+                          title: "خطأ",
+                          text: "تعذّر تسجيل التلميذ (قد يكون مسجلاً في الفوج مسبقاً)",
+                        });
+                        return;
+                      }
+                      studentObj = res.student;
+                      for (const c of courses.slice(1)) {
+                        await addStudentToGroup(studentObj.id, c.groupId, c.price);
+                      }
+                    }
+
+                    // One combined receipt + full/debt prompt
+                    const payInfo = await askPaymentAndCreateReceipt(studentObj, courses);
+
+                    const total = courses.reduce(
+                      (s, c) => s + (parseFloat(c.price) || 0),
+                      0
                     );
-
                     const printResult = await Swal.fire({
                       position: "center",
                       icon: "success",
-                      title: "تمت إضافة التلميذ بنجاح",
+                      title: "تم تسجيل التلميذ بنجاح",
                       text: "هل تريد طباعة وصل الدفع؟",
                       showCancelButton: true,
                       confirmButtonText: "نعم، اطبع الوصل",
@@ -845,19 +912,32 @@ function Students() {
                       cancelButtonColor: "#d33",
                     });
                     if (printResult.isConfirmed) {
-                      handlePrint(newStudent, payInfo);
+                      handlePrint(
+                        {
+                          fullName: name,
+                          birthDay: existingStudent
+                            ? existingStudent.birthDay
+                            : formatDate(values.birthDay),
+                          groupName: courses.map((c) => c.groupName).join("، "),
+                          price: total,
+                        },
+                        payInfo
+                      );
                     }
+
                     resetForm();
+                    setSelectedCourses([]);
+                    setExistingStudent(null);
+                    setGroup([]);
+                    setPriceInfo(null);
                     onClose();
-                    fetchStudents(); // Refresh the list of students
-                  } else {
+                    fetchStudents();
+                  } catch (err) {
+                    console.error(err);
                     Swal.fire({
-                      position: "center",
                       icon: "error",
                       title: "حدث خطأ",
-                      text: " التلميذ موجود بالفعل في  الفوج",
-                      showConfirmButton: false,
-                      timer: 1500,
+                      text: "تعذّر إتمام التسجيل",
                     });
                   }
 
@@ -872,48 +952,80 @@ function Students() {
                   handleSubmit,
                 }) => (
                   <Form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-                    <div className="text-center text-gray-800 text-3xl font-semibold leading-10">
-                      إضافة تلميذ
+                    <div className="text-center text-indigo-700 text-3xl font-bold leading-10">
+                      تسجيل تلميذ
                     </div>
+                    <p className="text-center text-gray-600 text-sm -mt-2">
+                      ابحث عن التلميذ إن كان مسجّلاً مسبقاً، أو أدخل اسماً جديداً،
+                      ثم أضف الدورات.
+                    </p>
 
-                    <div className="flex justify-between items-center w-full">
-                      <div className="w-fit">
-                        <Field
-                          className="w-fit"
-                          name="studentName"
-                          type="text"
-                          as={Input}
-                          label="الاسم الكامل لتلميذ"
-                          aria-label=" الاسم الكامل للتلميذ"
-                          onChange={handleChange}
-                          onBlur={handleBlur}
-                          value={values.studentName}
-                        />
-                        <ErrorMessage
-                          name="studentName"
-                          component="div"
-                          className="text-red-500"
-                        />
-                      </div>
-                      <div className="w-fit">
-                        <Field name="birthDay">
-                          {({ field }) => (
-                            <DatePicker
-                              label="تاريخ الميلاد"
-                              aria-label=" تاريخ الميلاد"
-                              selected={field.value}
-                              onChange={(date) =>
-                                setFieldValue("birthDay", date)
-                              }
-                            />
-                          )}
-                        </Field>
-                        <ErrorMessage
-                          name="birthDay"
-                          component="div"
-                          className="text-red-500"
-                        />
-                      </div>
+                    {/* Student: search existing or type a new name */}
+                    <div className="bg-white rounded-2xl p-4 shadow-sm">
+                      <Autocomplete
+                        label="اسم التلميذ"
+                        aria-label="اسم التلميذ"
+                        allowsCustomValue
+                        defaultItems={Array.isArray(student) ? student : []}
+                        inputValue={values.studentName}
+                        onInputChange={(val) => {
+                          setFieldValue("studentName", val);
+                          // typing a (different) name means it's not the picked student
+                          if (
+                            existingStudent &&
+                            val !== existingStudent.fullName
+                          ) {
+                            setExistingStudent(null);
+                          }
+                        }}
+                        onSelectionChange={(key) => {
+                          const s = (student || []).find(
+                            (x) => String(x.id) === String(key)
+                          );
+                          if (s) {
+                            setExistingStudent(s);
+                            setFieldValue("studentName", s.fullName);
+                          }
+                        }}
+                      >
+                        {(item) => (
+                          <AutocompleteItem key={item.id} textValue={item.fullName}>
+                            {item.fullName}
+                          </AutocompleteItem>
+                        )}
+                      </Autocomplete>
+                      <ErrorMessage
+                        name="studentName"
+                        component="div"
+                        className="text-red-500"
+                      />
+
+                      {existingStudent ? (
+                        <div className="mt-2 flex items-center gap-2 text-green-700 bg-green-50 rounded-lg px-3 py-2 text-sm">
+                          ✅ تلميذ مسجّل مسبقاً — لن تتم إعادة تسجيله، فقط إضافة
+                          الدورات والدفع.
+                        </div>
+                      ) : (
+                        <div className="mt-3 w-fit">
+                          <Field name="birthDay">
+                            {({ field }) => (
+                              <DatePicker
+                                label="تاريخ الميلاد (تلميذ جديد)"
+                                aria-label="تاريخ الميلاد"
+                                selected={field.value}
+                                onChange={(date) =>
+                                  setFieldValue("birthDay", date)
+                                }
+                              />
+                            )}
+                          </Field>
+                          <ErrorMessage
+                            name="birthDay"
+                            component="div"
+                            className="text-red-500"
+                          />
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex w-full  gap-4 justify-between items-center w-full">
@@ -1409,7 +1521,26 @@ function Students() {
                             >
                               {group.map((item) => (
                                 <SelectItem
-                                  onClick={() => setFieldValue("group", item)}
+                                  onClick={async () => {
+                                    setFieldValue("group", item);
+                                    setPriceInfo(null);
+                                    try {
+                                      const res = await getRegistrationPrice(
+                                        item.id
+                                      );
+                                      const info = res?.data;
+                                      if (info) {
+                                        setPriceInfo(info);
+                                        // Price = remaining sessions only
+                                        setFieldValue(
+                                          "group.price",
+                                          info.registrationPrice
+                                        );
+                                      }
+                                    } catch (e) {
+                                      setPriceInfo(null);
+                                    }
+                                  }}
                                   key={item.id}
                                   value={item.id}
                                 >
@@ -1424,12 +1555,19 @@ function Students() {
                             className="w-full"
                             name="price"
                             as={Input}
-                            type="Price"
-                            label=" السعر  التلميذ"
-                            aria-label=" السعر الاجمالي للحصة"
+                            type="number"
+                            max={priceInfo?.registrationPrice}
+                            label="السعر (حسب الحصص المتبقية)"
+                            aria-label="السعر حسب الحصص المتبقية"
                             onChange={(e) => {
-                              setFieldValue("group.price", e.target.value);
-                            }} // handleChange
+                              let v = e.target.value;
+                              const max = priceInfo?.registrationPrice;
+                              // Can't charge more than the remaining-sessions price
+                              if (max != null && parseFloat(v) > max) {
+                                v = String(max);
+                              }
+                              setFieldValue("group.price", v);
+                            }}
                             onBlur={handleBlur}
                             value={values.group.price}
                             endContent={
@@ -1446,6 +1584,60 @@ function Students() {
                             className="text-red-500"
                           />
                         </div>
+                        {priceInfo && (
+                          <div className="text-xs text-gray-600 bg-amber-50 rounded-lg p-2">
+                            سعر الحصة: <b>{priceInfo.pricePerSession} دج</b> — الحصص
+                            المتبقية: <b>{priceInfo.remainingSessions}</b> من{" "}
+                            {priceInfo.totalSessions} (أُجريت{" "}
+                            {priceInfo.heldSessions}). السعر المستحق:{" "}
+                            <b className="text-emerald-700">
+                              {priceInfo.registrationPrice} دج
+                            </b>{" "}
+                            — لا يمكن تجاوزه.
+                          </div>
+                        )}
+                        <Button
+                          type="button"
+                          className="w-full bg-emerald-600 text-white rounded-2xl font-semibold"
+                          onClick={() => {
+                            if (!values.group?.id) {
+                              Swal.fire({
+                                icon: "warning",
+                                title: "اختر فوجاً",
+                                text: "اختر الفوج أولاً",
+                              });
+                              return;
+                            }
+                            if (
+                              selectedCourses.some(
+                                (c) => c.groupId === values.group.id
+                              )
+                            ) {
+                              Swal.fire({
+                                icon: "info",
+                                title: "مضافة مسبقاً",
+                                text: "هذه الدورة مضافة بالفعل",
+                              });
+                              return;
+                            }
+                            setSelectedCourses((prev) => [
+                              ...prev,
+                              {
+                                groupId: values.group.id,
+                                groupName: values.group.name,
+                                price: parseFloat(values.group.price) || 0,
+                                numberOfSessions: values.group.numberOfSessions,
+                              },
+                            ]);
+                            // reset the picker so another course can be added
+                            setFieldValue("group", {});
+                            setFieldValue("ClassChoose", "");
+                            setGroup([]);
+                            setPriceInfo(null);
+                          }}
+                        >
+                          ➕ أضف هذه الدورة
+                        </Button>
                       </div>
                     )}
 
@@ -1454,6 +1646,47 @@ function Students() {
                       component="div"
                       className="text-red-500"
                     />
+
+                    {/* Chosen courses */}
+                    {selectedCourses.length > 0 && (
+                      <div className="bg-white rounded-2xl p-4 shadow-sm">
+                        <div className="font-bold mb-2">الدورات المختارة</div>
+                        {selectedCourses.map((c, i) => (
+                          <div
+                            key={c.groupId}
+                            className="flex justify-between items-center border-b py-2"
+                          >
+                            <span>{c.groupName}</span>
+                            <div className="flex items-center gap-3">
+                              <span className="font-semibold text-emerald-700">
+                                {c.price} دج
+                              </span>
+                              <button
+                                type="button"
+                                className="text-red-500"
+                                onClick={() =>
+                                  setSelectedCourses((prev) =>
+                                    prev.filter((_, idx) => idx !== i)
+                                  )
+                                }
+                              >
+                                حذف
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex justify-between mt-3 font-bold text-lg">
+                          <span>المجموع</span>
+                          <span className="text-emerald-700">
+                            {selectedCourses.reduce(
+                              (s, c) => s + (parseFloat(c.price) || 0),
+                              0
+                            )}{" "}
+                            دج
+                          </span>
+                        </div>
+                      </div>
+                    )}
                     {loadingSearch && (
                       <div className="flex justify-center items-center w-full">
                         <Spinner />
@@ -1465,12 +1698,17 @@ function Students() {
                         type="submit"
                         className="w-full text-center text-white text-base font-semibold bg-indigo-500 rounded-2xl px-8 py-2"
                       >
-                        اضافة
+                        تسجيل ودفع
                       </Button>
                       <Button
                         type="button"
-                        onClick={onClose}
-                        onPress={onClose}
+                        onClick={() => {
+                          setSelectedCourses([]);
+                          setExistingStudent(null);
+                          setGroup([]);
+                          setPriceInfo(null);
+                          onClose();
+                        }}
                         className="w-full text-center text-white text-base font-semibold bg-red-600 rounded-2xl px-8 py-2"
                       >
                         الغاء

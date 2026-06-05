@@ -35,7 +35,12 @@ import {
   updateGroup,
   updateGroupStatus,
 } from "../../apiCalls/GroupsCals";
-import { addInstallment, getDebts } from "../../apiCalls/receiptCalls";
+import {
+  addInstallment,
+  getDebts,
+  getReceiptById,
+} from "../../apiCalls/receiptCalls";
+import ReceiptPrint from "../../components/adminsCompnents/Financialmanagement/ReceiptPrint";
 import { getSchedule } from "../../apiCalls/scheduleCalls";
 import { deleteStudentFropmGroup } from "../../apiCalls/studentCalls";
 import { getAllTeachers } from "../../apiCalls/teacherCalls";
@@ -74,6 +79,8 @@ function Group() {
   const [paying, setPaying] = useState(false);
   // Set of student IDs that currently owe money (have a remaining balance)
   const [debtStudentIds, setDebtStudentIds] = useState(new Set());
+  // Receipt to display after a payment (for printing)
+  const [receiptData, setReceiptData] = useState(null);
   // attendance-history table filters
   const [filterCycle, setFilterCycle] = useState("all");
   const [filterSession, setFilterSession] = useState("all");
@@ -236,6 +243,7 @@ function Group() {
     try {
       // Spread the (capped) payment across the student's open debts (oldest first)
       let remainingToApply = amount;
+      const paidReceiptId = openDebts[0]?.id;
       for (const d of openDebts) {
         if (remainingToApply <= 0) break;
         const due = parseFloat(d.remainingAmount) || 0;
@@ -244,16 +252,19 @@ function Group() {
         remainingToApply -= pay;
       }
 
-      Swal.fire({
-        icon: "success",
-        title: "تم تسجيل الدفع",
-        text: `المبلغ المسجّل: ${amount.toFixed(2)} دج`,
-        timer: 1600,
-        showConfirmButton: false,
-      });
       setPayStudent(null);
       setPayAmount("");
       await fetchDebtStudents();
+
+      // Show the receipt for the paid debt so it can be printed
+      if (paidReceiptId) {
+        try {
+          const res = await getReceiptById(paidReceiptId);
+          setReceiptData(res?.data || res);
+        } catch (e) {
+          // ignore receipt fetch errors
+        }
+      }
     } catch (e) {
       Swal.fire({ icon: "error", title: "خطأ", text: "فشل تسجيل الدفع" });
     } finally {
@@ -1301,6 +1312,25 @@ function Group() {
             })()}
           </div>
         )}
+
+        {/* Receipt shown after a debt payment */}
+        <Modal
+          isOpen={Boolean(receiptData)}
+          onClose={() => setReceiptData(null)}
+          size="5xl"
+          scrollBehavior="inside"
+        >
+          <ModalContent>
+            <div className="p-6">
+              {receiptData && (
+                <ReceiptPrint
+                  receiptData={receiptData}
+                  onClose={() => setReceiptData(null)}
+                />
+              )}
+            </div>
+          </ModalContent>
+        </Modal>
 
         {/* Pay from the course list */}
         <Modal

@@ -1,19 +1,19 @@
 import React from "react";
 
-function CardStatictc({ text, value }) {
+// A modern gradient stat card with an icon
+function CardStatictc({ text, value, icon, gradient = "bg-gradient-to-br from-indigo-500 to-indigo-700" }) {
   return (
     <div
-      dir="ltr"
-      className="w-48  h-20 my-1 md:my-10  p-4 mx-4  text-center  border border-gray-200 rounded-xl flex-col justify-start items-end gap-3 inline-flex"
+      dir="rtl"
+      className={`rounded-2xl p-5 text-white shadow-lg ${gradient} flex items-center justify-between transition-transform hover:scale-[1.02]`}
     >
-      <div className="text-zinc-500 text-xs font-medium font-['Cairo'] uppercase leading-snug">
-        {text}
-      </div>
-      <div className="  ">
-        <div className="text-zinc-900 text-center text-2xl font-bold font-['Plus Jakarta Sans'] leading-9">
-          {value}
+      <div>
+        <div className="text-sm font-medium opacity-90 font-['Cairo']">
+          {text}
         </div>
+        <div className="text-3xl font-bold mt-1 leading-9">{value}</div>
       </div>
+      {icon && <div className="text-4xl opacity-80">{icon}</div>}
     </div>
   );
 }

@@ -32,6 +32,9 @@ const StudentDebts = () => {
   // receipt preview
   const [receiptData, setReceiptData] = useState(null);
 
+  // search by student name
+  const [search, setSearch] = useState("");
+
   const fetchDebts = async () => {
     setLoading(true);
     try {
@@ -57,11 +60,13 @@ const StudentDebts = () => {
     }
     setPaying(true);
     try {
-      await addInstallment(payTarget.id, { amount, method: "cash" });
-      Swal.fire({ icon: "success", title: "تم التسجيل", text: "تم تسجيل الدفعة" });
+      const receiptId = payTarget.id;
+      await addInstallment(receiptId, { amount, method: "cash" });
       setPayTarget(null);
       setPayAmount("");
-      fetchDebts();
+      await fetchDebts();
+      // Show the updated receipt so it can be printed
+      await handlePrint(receiptId);
     } catch (error) {
       Swal.fire({
         icon: "error",
@@ -94,6 +99,13 @@ const StudentDebts = () => {
     );
   }
 
+  const q = search.trim().toLowerCase();
+  const filteredDebts = q
+    ? debts.filter((d) =>
+        (d.student?.fullName || "").toLowerCase().includes(q)
+      )
+    : debts;
+
   return (
     <div className="p-6" dir="rtl">
       <div className="flex justify-between items-center mb-6">
@@ -105,12 +117,25 @@ const StudentDebts = () => {
         </div>
       </div>
 
+      {/* Search by student name */}
+      <div className="mb-4 max-w-sm">
+        <Input
+          placeholder="ابحث باسم التلميذ..."
+          value={search}
+          onValueChange={setSearch}
+          isClearable
+          onClear={() => setSearch("")}
+        />
+      </div>
+
       {loading ? (
         <div className="flex justify-center py-10">
           <Spinner />
         </div>
-      ) : debts.length === 0 ? (
-        <p className="text-center text-gray-500 py-10">لا توجد ديون مستحقة 🎉</p>
+      ) : filteredDebts.length === 0 ? (
+        <p className="text-center text-gray-500 py-10">
+          {debts.length === 0 ? "لا توجد ديون مستحقة 🎉" : "لا توجد نتائج مطابقة"}
+        </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
@@ -126,7 +151,7 @@ const StudentDebts = () => {
               </tr>
             </thead>
             <tbody>
-              {debts.map((d) => (
+              {filteredDebts.map((d) => (
                 <tr key={d.id} className="border-b hover:bg-gray-50">
                   <td className="p-3">{d.receiptNo}</td>
                   <td className="p-3">{d.student?.fullName || "غير متوفر"}</td>

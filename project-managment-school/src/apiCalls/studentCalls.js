@@ -66,6 +66,21 @@ const addStudent = async (student) => {
     return false;
   }
 };
+// Add an already-registered student to an additional group/course
+const addStudentToGroup = async (studentId, groupId, price) => {
+  try {
+    const response = await axios.post(
+      "http://localhost:3000/api/students/addStudentToGroup",
+      { studentId, groupId, price },
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (err) {
+    console.error("Failed to add student to group:", err);
+    return false;
+  }
+};
+
 const searchStudentApi = async (name) => {
   try {
     const response = await axios.post(
@@ -136,6 +151,7 @@ const deleteStudentFropmGroup = async (studentId, groupId) => {
 
 export {
   addStudent,
+  addStudentToGroup,
   countStudents,
   deleteStudent,
   deleteStudentFropmGroup,

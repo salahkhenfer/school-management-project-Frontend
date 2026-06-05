@@ -53,6 +53,20 @@ export const getFeeAdjustment = async (studentId, groupId, periodId) => {
   }
 };
 
+// Registration price for joining a group now (price of remaining sessions only)
+export const getRegistrationPrice = async (groupId) => {
+  try {
+    const response = await axios.get(
+      `${API_URL}/classes/group/${groupId}/registration-price`,
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching registration price:", error);
+    throw error;
+  }
+};
+
 // Update class limit for group
 export const updateGroupClassLimit = async (groupId, classLimit) => {
   try {
