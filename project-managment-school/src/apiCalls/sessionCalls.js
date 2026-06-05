@@ -78,4 +78,25 @@ const getSession = async (id) => {
     console.error("Failed to get session:", err);
   }
 };
-export { addSessionToGroup, deleteSession, getSession, updateSession };
+// Mark a single student present/absent in a session
+const setSessionAttendance = async (sessionId, studentId, present) => {
+  try {
+    const response = await axios.put(
+      `http://localhost:3000/api/sessions/${sessionId}/attendance`,
+      { studentId, present },
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (err) {
+    console.error("Failed to update attendance:", err);
+    throw err;
+  }
+};
+
+export {
+  addSessionToGroup,
+  deleteSession,
+  getSession,
+  setSessionAttendance,
+  updateSession,
+};

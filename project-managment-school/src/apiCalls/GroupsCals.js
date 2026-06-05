@@ -139,12 +139,28 @@ const getGroupByTeacher = async (teacherId) => {
     console.error("Failed to get group:", err);
   }
 };
+// Reopen a completed group with the same students, adding them to the debt list
+const reopenGroup = async (id) => {
+  try {
+    const response = await axios.post(
+      "http://localhost:3000/api/groups/reopenGroup",
+      { id },
+      { withCredentials: true }
+    );
+    return response.data;
+  } catch (err) {
+    console.error("Failed to reopen group:", err);
+    throw err;
+  }
+};
+
 export {
   addGroupApi,
   deleteGroup,
   getGroupById,
   getGroupByTeacher,
   getGroups,
+  reopenGroup,
   updateGroup,
   updateGroupStatus,
 };

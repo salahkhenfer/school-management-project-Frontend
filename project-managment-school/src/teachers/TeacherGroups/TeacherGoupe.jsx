@@ -430,6 +430,10 @@ function TeacherGoupe() {
       </div>
     );
   } else {
+    // Only the current course cycle's sessions (renewed when the course reopens)
+    const currentSessions = (group?.sessions || [])
+      .filter((s) => (s.cycle || 1) === (group?.currentCycle || 1))
+      .sort((a, b) => a.sessionNumber - b.sessionNumber);
     return (
       <div>
         <div className="flex sticky top-0 left-0 z-30    items-center p-4 mb-4   text-red-800 border-t-4 border-red-300 bg-red-50 dark:text-red-400 dark:bg-gray-800 dark:border-red-800">
@@ -510,7 +514,7 @@ function TeacherGoupe() {
                     className="flex justify-start items-center gap-2"
                     key={index}
                   >
-                    {group?.sessions?.length > index ? (
+                    {currentSessions.length > index ? (
                       // Check if the session is in the list
                       <div className="flex flex-col items-center">
                         <Chip
@@ -518,18 +522,18 @@ function TeacherGoupe() {
                           startContent={<BiCheck size={20} />}
                           color="success"
                           onClick={() =>
-                            handleChipClick(group.sessions[index].id)
+                            handleChipClick(currentSessions[index].id)
                           } // Pass the session ID
                         >
                           الحصة {index + 1}
                         </Chip>
-                        {(group.sessions[index].sessionDate ||
-                          group.sessions[index].sessionTime) && (
+                        {(currentSessions[index].sessionDate ||
+                          currentSessions[index].sessionTime) && (
                           <span className="text-[10px] text-gray-500 mt-1">
-                            {group.sessions[index].sessionDate}
-                            {group.sessions[index].sessionTime
+                            {currentSessions[index].sessionDate}
+                            {currentSessions[index].sessionTime
                               ? ` • ${String(
-                                  group.sessions[index].sessionTime
+                                  currentSessions[index].sessionTime
                                 ).slice(0, 5)}`
                               : ""}
                           </span>
@@ -614,7 +618,7 @@ function TeacherGoupe() {
               </TableBody>
             </Table>
           )}
-          {group?.sessions?.length === group.numberOfSessions ? (
+          {currentSessions.length >= group.numberOfSessions ? (
             <div className="text-center text-2xl font-bold text-red-500">
               تم اكتمال الحصص
             </div>

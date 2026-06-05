@@ -31,12 +31,18 @@ import * as Yup from "yup";
 import {
   deleteGroup,
   getGroupById,
+  reopenGroup,
   updateGroup,
   updateGroupStatus,
 } from "../../apiCalls/GroupsCals";
+import { addInstallment, getDebts } from "../../apiCalls/receiptCalls";
 import { getSchedule } from "../../apiCalls/scheduleCalls";
 import { deleteStudentFropmGroup } from "../../apiCalls/studentCalls";
 import { getAllTeachers } from "../../apiCalls/teacherCalls";
+import {
+  addSessionToGroup,
+  setSessionAttendance,
+} from "../../apiCalls/sessionCalls";
 import LineAddTime from "../../components/adminsCompnents/groups/LineAddTime";
 import AttendanceList from "../../components/adminsCompnents/groups/AttendanceList";
 import { font } from "../../assets/Cairo-VariableFont_slnt,wght-normal";
@@ -59,7 +65,316 @@ function Group() {
   const [addGroup, setAddGroup] = useState(false);
   const [data, setData] = useState([]);
   const [isAttendanceOpen, setIsAttendanceOpen] = useState(false);
+  // attendance matrix: { [sessionId]: Set(studentId) }
+  const [attendance, setAttendance] = useState({});
+  // payment-from-list state
+  const [payStudent, setPayStudent] = useState(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [payDebts, setPayDebts] = useState([]);
+  const [paying, setPaying] = useState(false);
+  // Set of student IDs that currently owe money (have a remaining balance)
+  const [debtStudentIds, setDebtStudentIds] = useState(new Set());
+  // attendance-history table filters
+  const [filterCycle, setFilterCycle] = useState("all");
+  const [filterSession, setFilterSession] = useState("all");
+  const [filterStudent, setFilterStudent] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
   const pathname = useLocation().pathname;
+
+  // Load which students have an outstanding debt so we only show "دفع" for them
+  const fetchDebtStudents = async () => {
+    try {
+      const res = await getDebts();
+      const ids = new Set(
+        (res?.data || [])
+          .filter((d) => (parseFloat(d.remainingAmount) || 0) > 0)
+          .map((d) => d.student?.id)
+          .filter(Boolean)
+      );
+      setDebtStudentIds(ids);
+    } catch (e) {
+      setDebtStudentIds(new Set());
+    }
+  };
+
+  // Build the attendance map whenever the group's sessions change
+  useEffect(() => {
+    if (group?.sessions) {
+      const map = {};
+      group.sessions.forEach((s) => {
+        map[s.id] = new Set((s.students || []).map((st) => st.id));
+      });
+      setAttendance(map);
+    }
+  }, [group?.sessions]);
+
+  const toggleAttendance = async (sessionId, studentId) => {
+    const isPresent = attendance[sessionId]?.has(studentId);
+    const next = !isPresent;
+
+    // Ask for confirmation when marking a student ABSENT
+    if (!next) {
+      const result = await Swal.fire({
+        title: "تأكيد الغياب",
+        text: "هل أنت متأكد من تسجيل هذا التلميذ كغائب؟",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "نعم، غائب",
+        cancelButtonText: "إلغاء",
+        confirmButtonColor: "#dc2626",
+      });
+      if (!result.isConfirmed) return;
+    }
+
+    // optimistic update
+    setAttendance((prev) => {
+      const set = new Set(prev[sessionId] || []);
+      if (next) set.add(studentId);
+      else set.delete(studentId);
+      return { ...prev, [sessionId]: set };
+    });
+
+    try {
+      await setSessionAttendance(sessionId, studentId, next);
+    } catch (e) {
+      // revert on failure
+      setAttendance((prev) => {
+        const set = new Set(prev[sessionId] || []);
+        if (next) set.delete(studentId);
+        else set.add(studentId);
+        return { ...prev, [sessionId]: set };
+      });
+      Swal.fire({ icon: "error", title: "خطأ", text: "فشل تحديث الحضور" });
+    }
+  };
+
+  const handleAddSession = async () => {
+    try {
+      await addSessionToGroup(group.id, []); // create an empty session to fill in
+      await fatchGroup();
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "خطأ", text: "فشل إضافة الحصة" });
+    }
+  };
+
+  // Reopen the finished course for the same students (adds them to the debt list)
+  const handleReopenGroup = async () => {
+    const result = await Swal.fire({
+      title: "إعادة فتح الفوج؟",
+      text: "سيُعاد فتح الفوج بنفس التلاميذ، وتُضاف مستحقاتهم إلى قائمة الديون.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "نعم، أعد الفتح",
+      cancelButtonText: "إلغاء",
+      confirmButtonColor: "#16a34a",
+    });
+    if (!result.isConfirmed) return;
+    try {
+      const res = await reopenGroup(group.id);
+      setIsCompleted(false);
+      await fatchGroup();
+      fetchDebtStudents();
+      Swal.fire({
+        icon: "success",
+        title: "تم إعادة فتح الفوج",
+        text: `تمت إضافة ${res?.debtsCreated || 0} تلميذ إلى قائمة الديون`,
+      });
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "خطأ", text: "فشل إعادة فتح الفوج" });
+    }
+  };
+
+  // Open the payment dialog for a student and load their outstanding debts.
+  // Prefill the amount with the full outstanding so paying it clears the debt.
+  const openPayModal = async (st) => {
+    setPayStudent(st);
+    setPayAmount("");
+    setPayDebts([]);
+    try {
+      const res = await getDebts(st.id);
+      const debts = res?.data || [];
+      setPayDebts(debts);
+      const out = debts.reduce(
+        (sum, d) => sum + (parseFloat(d.remainingAmount) || 0),
+        0
+      );
+      if (out > 0) setPayAmount(out.toFixed(2));
+    } catch (e) {
+      setPayDebts([]);
+    }
+  };
+
+  const outstanding = payDebts.reduce(
+    (sum, d) => sum + (parseFloat(d.remainingAmount) || 0),
+    0
+  );
+
+  const handlePayFromList = async () => {
+    let amount = parseFloat(payAmount);
+    if (!amount || amount <= 0) {
+      Swal.fire({ icon: "warning", title: "مبلغ غير صالح", text: "أدخل مبلغاً موجباً" });
+      return;
+    }
+
+    const openDebts = payDebts
+      .filter((d) => (parseFloat(d.remainingAmount) || 0) > 0)
+      .sort((a, b) => new Date(a.date) - new Date(b.date)); // oldest first
+
+    // No debt -> nothing to pay (the button shouldn't even be shown)
+    if (openDebts.length === 0) {
+      Swal.fire({ icon: "info", title: "لا يوجد دين", text: "هذا التلميذ ليس عليه دين" });
+      setPayStudent(null);
+      return;
+    }
+
+    // Never allow paying more than the outstanding debt
+    if (amount > outstanding) {
+      amount = outstanding;
+    }
+
+    setPaying(true);
+    try {
+      // Spread the (capped) payment across the student's open debts (oldest first)
+      let remainingToApply = amount;
+      for (const d of openDebts) {
+        if (remainingToApply <= 0) break;
+        const due = parseFloat(d.remainingAmount) || 0;
+        const pay = Math.min(due, remainingToApply);
+        await addInstallment(d.id, { amount: pay, method: "cash" });
+        remainingToApply -= pay;
+      }
+
+      Swal.fire({
+        icon: "success",
+        title: "تم تسجيل الدفع",
+        text: `المبلغ المسجّل: ${amount.toFixed(2)} دج`,
+        timer: 1600,
+        showConfirmButton: false,
+      });
+      setPayStudent(null);
+      setPayAmount("");
+      await fetchDebtStudents();
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "خطأ", text: "فشل تسجيل الدفع" });
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  // Print the attendance list as an Arabic document.
+  // If the current cycle has sessions, prints a matrix (students x sessions);
+  // otherwise prints a clean student list with a blank attendance column.
+  const handlePrintAttendance = () => {
+    if (student.length === 0) {
+      Swal.fire({
+        icon: "error",
+        title: "عذرا",
+        text: "لا يوجد تلاميذ في هذا الفوج",
+      });
+      return;
+    }
+
+    const cycle = group?.currentCycle || 1;
+    const sessions = [...(group?.sessions || [])]
+      .filter((s) => (s.cycle || 1) === cycle)
+      .sort((a, b) => a.sessionNumber - b.sessionNumber);
+    const hasSessions = sessions.length > 0;
+    const teacherName = group?.teachers?.slice(-1)[0]?.fullName || "";
+
+    const headerCols = hasSessions
+      ? sessions
+          .map(
+            (s) =>
+              `<th>الحصة ${s.sessionNumber}<br/><span class="sub">${
+                s.sessionDate || ""
+              }${
+                s.sessionTime ? " " + String(s.sessionTime).slice(0, 5) : ""
+              }</span></th>`
+          )
+          .join("")
+      : `<th>الحضور</th>`;
+
+    const bodyRows = student
+      .map((st, i) => {
+        const cells = hasSessions
+          ? sessions
+              .map((s) => {
+                const present = attendance[s.id]?.has(st.id);
+                return `<td class="${present ? "p" : "a"}">${
+                  present ? "✓" : "✗"
+                }</td>`;
+              })
+              .join("")
+          : `<td></td>`;
+        return `<tr><td class="idx">${i + 1}</td><td class="name">${
+          st.fullName
+        }</td>${cells}</tr>`;
+      })
+      .join("");
+
+    const totalsRow = hasSessions
+      ? `<tr><td></td><td class="name">حاضر / المجموع</td>${sessions
+          .map(
+            (s) =>
+              `<td class="tot">${attendance[s.id]?.size || 0} / ${
+                student.length
+              }</td>`
+          )
+          .join("")}</tr>`
+      : "";
+
+    const html = `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="UTF-8" />
+        <title>قائمة الحضور والغياب</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+          * { font-family: 'Cairo', Arial, sans-serif; }
+          body { padding: 16px; }
+          h1 { text-align: center; margin: 0 0 4px; font-size: 22px; }
+          .meta { text-align: center; color: #444; margin-bottom: 12px; font-size: 13px; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #555; padding: 6px; text-align: center; font-size: 12px; }
+          th { background: #e5e7eb; }
+          .sub { font-weight: normal; font-size: 9px; color: #555; }
+          .name { text-align: right; font-weight: 600; }
+          .idx { width: 28px; }
+          .p { color: #16a34a; font-weight: bold; }
+          .a { color: #dc2626; font-weight: bold; }
+          .tot { background: #f3f4f6; font-weight: 700; }
+          @page { size: A4 landscape; margin: 1cm; }
+        </style>
+      </head>
+      <body>
+        <h1>قائمة الحضور والغياب</h1>
+        <div class="meta">
+          الفوج: ${group?.name || ""} &nbsp;|&nbsp; الأستاذ: ${teacherName} &nbsp;|&nbsp;
+          عدد التلاميذ: ${student.length} &nbsp;|&nbsp; التاريخ: ${new Date().toLocaleDateString()}
+        </div>
+        <table>
+          <thead>
+            <tr><th class="idx">#</th><th class="name">التلميذ</th>${headerCols}</tr>
+          </thead>
+          <tbody>
+            ${bodyRows}
+            ${totalsRow}
+          </tbody>
+        </table>
+        <script>
+          window.onload = function () {
+            window.print();
+            setTimeout(function () { window.close(); }, 100);
+          };
+        </script>
+      </body>
+      </html>`;
+
+    const w = window.open("", "_blank");
+    w.document.write(html);
+    w.document.close();
+  };
 
   const handlePaymentMethodChange = (event) => {
     console.log(event.target.value);
@@ -371,6 +686,7 @@ function Group() {
   useEffect(() => {
     fatchGroup();
     fetchAllTeachers();
+    fetchDebtStudents();
   }, []);
 
   const deleteGroupApi = async () => {
@@ -515,14 +831,6 @@ function Group() {
               تحميل القائمة
             </Button>
             <Button
-              onClick={() => setIsAttendanceOpen(true)}
-              color="warning"
-              className="text-white"
-              startContent={<FaPrint />}
-            >
-              قائمة الحضور
-            </Button>
-            <Button
               className="text-white"
               color={!isCompleted ? "success" : "default"} // Adjust color based on status
               variant="solid"
@@ -531,6 +839,17 @@ function Group() {
             >
               {isCompleted ? "تم الانتهاء من الفوج" : "اضغط للإنهاء الفوج"}
             </Button>
+            {isCompleted && (
+              <Button
+                className="text-white"
+                color="warning"
+                variant="solid"
+                onClick={handleReopenGroup}
+                startContent={<IoAdd />}
+              >
+                إعادة فتح بنفس التلاميذ (ديون)
+              </Button>
+            )}
           </div>
         </div>
         <div className="text-xl">
@@ -626,13 +945,26 @@ function Group() {
                       {columnKey === "index" &&
                         parseInt(student.indexOf(item)) + 1}
                       {columnKey === "action" ? (
-                        <div className="flex ">
+                        <div className="flex gap-2">
+                          {debtStudentIds.has(item.id) && (
+                            <Button
+                              color="success"
+                              className="text-white"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openPayModal(item);
+                              }}
+                            >
+                              دفع
+                            </Button>
+                          )}
                           <Button
                             color="danger"
                             startContent={<MdDelete />}
-                            onClick={() =>
-                              deleteStudentApi(student.indexOf(item), item.id)
-                            }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteStudentApi(student.indexOf(item), item.id);
+                            }}
                           >
                             {" "}
                             <div className="max-md:hidden">
@@ -653,6 +985,376 @@ function Group() {
             </TableBody>
           </Table>
         )}
+
+        {/* Sessions & attendance matrix (check present / absent) */}
+        <div className="my-10" dir="rtl">
+          <div className="flex justify-between items-center mb-4">
+            <div className="font-bold text-3xl text-right">الحضور والغياب</div>
+            <div className="flex gap-2">
+              <Button color="primary" startContent={<IoAdd />} onClick={handleAddSession}>
+                إضافة حصة
+              </Button>
+              <Button
+                color="warning"
+                className="text-white"
+                startContent={<FaDownload />}
+                onClick={() => setIsAttendanceOpen(true)}
+              >
+                تصدير القائمة
+              </Button>
+              <Button
+                color="success"
+                className="text-white"
+                startContent={<FaPrint />}
+                onClick={handlePrintAttendance}
+              >
+                طباعة القائمة
+              </Button>
+            </div>
+          </div>
+
+          {student.length === 0 ? (
+            <div className="text-center text-lg text-gray-500">
+              لا يوجد طلاب في هذا الفوج
+            </div>
+          ) : (
+            (() => {
+              const existing = [...group.sessions]
+                .filter((s) => (s.cycle || 1) === (group.currentCycle || 1))
+                .sort((a, b) => a.sessionNumber - b.sessionNumber);
+              const planned = parseInt(group?.numberOfSessions) || 0;
+              const totalCols = Math.max(planned, existing.length);
+              // Every planned slot; null means "not recorded yet"
+              const columns = Array.from(
+                { length: totalCols },
+                (_, i) => existing[i] || null
+              );
+
+              if (totalCols === 0) {
+                return (
+                  <div className="text-center text-lg text-gray-500">
+                    حدّد عدد الحصص للفوج أولاً
+                  </div>
+                );
+              }
+
+              return (
+                <div className="overflow-x-auto">
+                  <table className="border-collapse border-2 border-gray-400 text-center text-sm">
+                    <thead>
+                      <tr className="bg-gray-200">
+                        <th className="border border-gray-400 p-2 sticky right-0 bg-gray-200 min-w-[160px]">
+                          التلميذ
+                        </th>
+                        {columns.map((s, i) => (
+                          <th
+                            key={`col-${i}`}
+                            className={`border border-gray-400 p-2 min-w-[90px] ${
+                              s ? "" : "bg-gray-100"
+                            }`}
+                          >
+                            <div>الحصة {i + 1}</div>
+                            {s ? (
+                              <>
+                                <div className="text-[10px] font-normal text-gray-600">
+                                  {s.sessionDate || ""}
+                                </div>
+                                <div className="text-[10px] font-normal text-gray-600">
+                                  {s.sessionTime
+                                    ? String(s.sessionTime).slice(0, 5)
+                                    : ""}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-[10px] font-normal text-gray-400">
+                                لم تُسجّل
+                              </div>
+                            )}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {student.map((st) => (
+                        <tr key={st.id} className="hover:bg-gray-50">
+                          <td className="border border-gray-400 p-2 text-right font-semibold sticky right-0 bg-white">
+                            {st.fullName}
+                          </td>
+                          {columns.map((s, i) => {
+                            if (!s) {
+                              return (
+                                <td
+                                  key={`empty-${i}-${st.id}`}
+                                  className="border border-gray-400 p-2 bg-gray-50 text-gray-300"
+                                  title="لم تُسجّل هذه الحصة بعد"
+                                >
+                                  —
+                                </td>
+                              );
+                            }
+                            const present = attendance[s.id]?.has(st.id);
+                            return (
+                              <td
+                                key={`${s.id}-${st.id}`}
+                                className={`border border-gray-400 p-2 cursor-pointer select-none ${
+                                  present ? "bg-green-50" : "bg-red-50"
+                                }`}
+                                onClick={() => toggleAttendance(s.id, st.id)}
+                                title={present ? "حاضر" : "غائب"}
+                              >
+                                {present ? (
+                                  <span className="text-green-600 font-bold">✓</span>
+                                ) : (
+                                  <span className="text-red-400 font-bold">✗</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                      {/* Totals row */}
+                      <tr className="bg-gray-100 font-semibold">
+                        <td className="border border-gray-400 p-2 text-right sticky right-0 bg-gray-100">
+                          حاضر / المجموع
+                        </td>
+                        {columns.map((s, i) => (
+                          <td
+                            key={`total-${i}`}
+                            className="border border-gray-400 p-2"
+                          >
+                            {s ? (
+                              `${attendance[s.id]?.size || 0} / ${student.length}`
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p className="text-xs text-gray-500 mt-2">
+                    اضغط على الخانة لتبديل الحضور (✓) / الغياب (✗). الحصص "لم
+                    تُسجّل" تظهر للمعاينة، وتصبح قابلة للتعليم بعد إضافتها بزر
+                    "إضافة حصة".
+                  </p>
+                </div>
+              );
+            })()
+          )}
+        </div>
+
+        {/* Full attendance history (filterable table) */}
+        {(group?.sessions || []).length > 0 && student.length > 0 && (
+          <div className="my-10" dir="rtl">
+            <div className="font-bold text-2xl text-right mb-4">
+              سجل الحضور الكامل
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap gap-3 mb-4">
+              <select
+                value={filterCycle}
+                onChange={(e) => setFilterCycle(e.target.value)}
+                className="border rounded-lg p-2 bg-white"
+              >
+                <option value="all">كل الدورات</option>
+                {[...new Set(group.sessions.map((s) => s.cycle || 1))]
+                  .sort((a, b) => a - b)
+                  .map((c) => (
+                    <option key={c} value={c}>
+                      الدورة {c}
+                    </option>
+                  ))}
+              </select>
+              <select
+                value={filterSession}
+                onChange={(e) => setFilterSession(e.target.value)}
+                className="border rounded-lg p-2 bg-white"
+              >
+                <option value="all">كل الحصص</option>
+                {[...new Set(group.sessions.map((s) => s.sessionNumber))]
+                  .sort((a, b) => a - b)
+                  .map((n) => (
+                    <option key={n} value={n}>
+                      الحصة {n}
+                    </option>
+                  ))}
+              </select>
+              <select
+                value={filterStudent}
+                onChange={(e) => setFilterStudent(e.target.value)}
+                className="border rounded-lg p-2 bg-white"
+              >
+                <option value="all">كل التلاميذ</option>
+                {student.map((st) => (
+                  <option key={st.id} value={st.id}>
+                    {st.fullName}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="border rounded-lg p-2 bg-white"
+              >
+                <option value="all">الكل</option>
+                <option value="present">حاضر</option>
+                <option value="absent">غائب</option>
+              </select>
+            </div>
+
+            {(() => {
+              const rows = [];
+              group.sessions.forEach((s) => {
+                const presentIds = new Set(
+                  (s.students || []).map((x) => x.id)
+                );
+                student.forEach((st) => {
+                  rows.push({
+                    cycle: s.cycle || 1,
+                    num: s.sessionNumber,
+                    date: s.sessionDate || "",
+                    time: s.sessionTime
+                      ? String(s.sessionTime).slice(0, 5)
+                      : "",
+                    sid: st.id,
+                    name: st.fullName,
+                    present: presentIds.has(st.id),
+                  });
+                });
+              });
+
+              const filtered = rows
+                .filter(
+                  (r) =>
+                    (filterCycle === "all" ||
+                      String(r.cycle) === String(filterCycle)) &&
+                    (filterSession === "all" ||
+                      String(r.num) === String(filterSession)) &&
+                    (filterStudent === "all" ||
+                      String(r.sid) === String(filterStudent)) &&
+                    (filterStatus === "all" ||
+                      (filterStatus === "present" ? r.present : !r.present))
+                )
+                .sort(
+                  (a, b) =>
+                    a.cycle - b.cycle ||
+                    a.num - b.num ||
+                    a.name.localeCompare(b.name)
+                );
+
+              return (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse border border-gray-400 text-center text-sm">
+                    <thead>
+                      <tr className="bg-gray-200">
+                        <th className="border border-gray-400 p-2">الدورة</th>
+                        <th className="border border-gray-400 p-2">الحصة</th>
+                        <th className="border border-gray-400 p-2">التاريخ</th>
+                        <th className="border border-gray-400 p-2">الوقت</th>
+                        <th className="border border-gray-400 p-2">التلميذ</th>
+                        <th className="border border-gray-400 p-2">الحالة</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="p-4 text-gray-500">
+                            لا توجد نتائج
+                          </td>
+                        </tr>
+                      ) : (
+                        filtered.map((r, i) => (
+                          <tr key={i} className="hover:bg-gray-50">
+                            <td className="border border-gray-400 p-2">
+                              {r.cycle}
+                            </td>
+                            <td className="border border-gray-400 p-2">
+                              {r.num}
+                            </td>
+                            <td className="border border-gray-400 p-2">
+                              {r.date}
+                            </td>
+                            <td className="border border-gray-400 p-2">
+                              {r.time}
+                            </td>
+                            <td className="border border-gray-400 p-2 text-right">
+                              {r.name}
+                            </td>
+                            <td
+                              className={`border border-gray-400 p-2 font-bold ${
+                                r.present ? "text-green-600" : "text-red-600"
+                              }`}
+                            >
+                              {r.present ? "حاضر" : "غائب"}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                  <p className="text-xs text-gray-500 mt-2">
+                    عدد النتائج: {filtered.length}
+                  </p>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* Pay from the course list */}
+        <Modal
+          isOpen={Boolean(payStudent)}
+          onClose={() => setPayStudent(null)}
+        >
+          <ModalContent>
+            <div className="p-6 flex flex-col gap-4" dir="rtl">
+              <h3 className="text-xl font-bold">
+                تسجيل دفع {payStudent ? `- ${payStudent.fullName}` : ""}
+              </h3>
+              <div className="text-sm">
+                <p>
+                  إجمالي الدين المستحق:{" "}
+                  <strong className="text-red-600">
+                    {outstanding.toFixed(2)} دج
+                  </strong>
+                </p>
+              </div>
+              <Input
+                type="number"
+                min={0}
+                max={outstanding}
+                label="المبلغ المدفوع الآن"
+                value={payAmount}
+                onValueChange={(v) => {
+                  // Never let the entered amount exceed the outstanding debt
+                  const n = parseFloat(v);
+                  if (!isNaN(n) && n > outstanding) {
+                    setPayAmount(outstanding.toFixed(2));
+                  } else {
+                    setPayAmount(v);
+                  }
+                }}
+              />
+              <p className="text-xs text-gray-500">
+                لا يمكن دفع أكثر من الدين المستحق. سيُخصم المبلغ من دين التلميذ.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  color="danger"
+                  variant="light"
+                  onClick={() => setPayStudent(null)}
+                >
+                  إلغاء
+                </Button>
+                <Button color="primary" isLoading={paying} onClick={handlePayFromList}>
+                  تسجيل الدفع
+                </Button>
+              </div>
+            </div>
+          </ModalContent>
+        </Modal>
+
         {/* Attendance list (printable + Excel/Word export) */}
         <Modal
           isOpen={isAttendanceOpen}
