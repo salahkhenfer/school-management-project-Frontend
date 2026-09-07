@@ -3,7 +3,7 @@
 const getCourses = async () => {
   try {
     const response = await axios.get(
-      "http://localhost:3000/api/courses/getAllCourses",
+      "https://api.eltatwir.com/api/courses/getAllCourses",
       {
         withCredentials: true,
       }
@@ -18,7 +18,7 @@ const getCourses = async () => {
 const addCourse = async (name) => {
   try {
     const response = await axios.post(
-      "http://localhost:3000/api/courses/addCourse",
+      "https://api.eltatwir.com/api/courses/addCourse",
       {
         name: name,
       },
@@ -37,7 +37,7 @@ const addCourse = async (name) => {
 const deleteCourse = async (id) => {
   try {
     const response = await axios.delete(
-      "http://localhost:3000/api/courses/deleteCourse",
+      "https://api.eltatwir.com/api/courses/deleteCourse",
       {
         data: { id: id },
         withCredentials: true,

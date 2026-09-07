@@ -3,7 +3,7 @@
 const sendMessage = async (message, id) => {
   try {
     const response = await axios.post(
-      "http://localhost:3000/api/messages/send",
+      "https://api.eltatwir.com/api/messages/send",
       {
         content: message,
         id,
@@ -21,7 +21,7 @@ const sendMessage = async (message, id) => {
 const getMessages = async () => {
   try {
     const response = await axios.get(
-      `http://localhost:3000/api/messages/all`,
+      `https://api.eltatwir.com/api/messages/all`,
       {},
       {
         withCredentials: true,

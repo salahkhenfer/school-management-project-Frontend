@@ -1,7 +1,7 @@
 ﻿import axios from "axios";
 
 // Using localhost for local development
-const API_URL = "http://localhost:3000/api";
+const API_URL = "https://api.eltatwir.com/api";
 
 export const LoginApi = async (username, password) => {
   try {

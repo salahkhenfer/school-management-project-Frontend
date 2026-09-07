@@ -3,7 +3,7 @@
 const createpermission = async (data) => {
   try {
     const response = await axios.post(
-      "http://localhost:3000/api/permissions/createpermissio",
+      "https://api.eltatwir.com/api/permissions/createpermissio",
       data,
       {
         withCredentials: true,
@@ -19,7 +19,7 @@ const createpermission = async (data) => {
 const getPermissions = async () => {
   try {
     const response = await axios.get(
-      "http://localhost:3000/api/permissions/getPermissions",
+      "https://api.eltatwir.com/api/permissions/getPermissions",
       {
         withCredentials: true,
       }
@@ -33,7 +33,7 @@ const getPermissions = async () => {
 const getUsersByRole = async (role) => {
   try {
     const response = await axios.post(
-      "http://localhost:3000/api/permissions/getUsersByRole",
+      "https://api.eltatwir.com/api/permissions/getUsersByRole",
       { role },
       {
         withCredentials: true,

@@ -3,7 +3,7 @@
 const getGroupById = async (id) => {
   try {
     const response = await axios.post(
-      `http://localhost:3000/api/groups/getGroupByID`,
+      `https://api.eltatwir.com/api/groups/getGroupByID`,
       { id: id }, // Send the group ID in the request body
       {
         withCredentials: true,
@@ -21,7 +21,7 @@ const getGroups = async (theRest) => {
   console.log(theRest);
   try {
     const response = await axios.post(
-      `http://localhost:3000/api/groups/getAllGroups`,
+      `https://api.eltatwir.com/api/groups/getAllGroups`,
       { theRest: theRest }, // Send theRest in the request body
       {
         withCredentials: true,
@@ -38,7 +38,7 @@ const getGroups = async (theRest) => {
 const addGroupApi = async (group) => {
   try {
     const response = await axios.post(
-      "http://localhost:3000/api/groups/addGroup",
+      "https://api.eltatwir.com/api/groups/addGroup",
       {
         name: group.groupName,
         price: group.price,
@@ -67,7 +67,7 @@ const addGroupApi = async (group) => {
 const deleteGroup = async (id) => {
   try {
     const response = await axios.delete(
-      "http://localhost:3000/api/groups/deleteGroup",
+      "https://api.eltatwir.com/api/groups/deleteGroup",
 
       {
         data: { id: id },
@@ -84,7 +84,7 @@ const deleteGroup = async (id) => {
 const updateGroupStatus = async (id, isCompleted) => {
   try {
     const response = await axios.put(
-      "http://localhost:3000/api/groups/updateGroupStatus",
+      "https://api.eltatwir.com/api/groups/updateGroupStatus",
       {
         id: id,
         isCompleted,
@@ -102,7 +102,7 @@ const updateGroupStatus = async (id, isCompleted) => {
 const updateGroup = async (group) => {
   try {
     const response = await axios.put(
-      "http://localhost:3000/api/groups/updateGroup",
+      "https://api.eltatwir.com/api/groups/updateGroup",
       {
         id: group.id,
         name: group.groupName,
@@ -127,7 +127,7 @@ const updateGroup = async (group) => {
 const getGroupByTeacher = async (teacherId) => {
   try {
     const response = await axios.post(
-      "http://localhost:3000/api/groups/getGroupByTeacher",
+      "https://api.eltatwir.com/api/groups/getGroupByTeacher",
       { teacherId },
       {
         withCredentials: true,
@@ -143,7 +143,7 @@ const getGroupByTeacher = async (teacherId) => {
 const reopenGroup = async (id) => {
   try {
     const response = await axios.post(
-      "http://localhost:3000/api/groups/reopenGroup",
+      "https://api.eltatwir.com/api/groups/reopenGroup",
       { id },
       { withCredentials: true }
     );

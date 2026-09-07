@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 import { CategoryScale } from "chart.js";
 import Chart from "chart.js/auto";
 import { useEffect, useState } from "react";
@@ -7,7 +7,7 @@ import { BarChartEach } from "./BarChartEach";
 Chart.register(CategoryScale);
 
 function BarChart() {
-  const threshold = 20; // العتبة لتغيير اللون
+  const threshold = 20; // ط§ظ„ط¹طھط¨ط© ظ„طھط؛ظٹظٹط± ط§ظ„ظ„ظˆظ†
 
   const [chartData, setChartData] = useState({
     labels: [],
@@ -26,7 +26,7 @@ function BarChart() {
     const fetchData = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:3000/api/students/monthly-student-count"
+          "https://api.eltatwir.com/api/students/monthly-student-count"
         );
         const data = response.data;
 
